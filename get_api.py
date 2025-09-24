@@ -1,2 +1,2 @@
-int n = 4 ;
+n = 4
 print("hello world")
