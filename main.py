@@ -16,6 +16,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.image import AsyncImage
+from kivy.uix.scrollview import ScrollView
 from kivy.lang import Builder
 from kivy.graphics import Color, Rectangle
 from kivy.properties import ListProperty, StringProperty
@@ -24,6 +25,8 @@ import re
 import csv
 from datetime import datetime
 import os
+import subprocess
+import platform
 
 class DarkTextInput(TextInput):
     pass
@@ -251,7 +254,7 @@ class ResultScreen(Screen):
                 writer.writerow(['Target Date:', self.current_date])
                 writer.writerow([])
                 
-                # Predictions (ตัวอย่าง - คุณสามารถแก้ไขให้เหมาะกับข้อมูลจริงของคุณ)
+                # Predictions
                 writer.writerow(['Parameter', 'Prediction', 'Unit'])
                 writer.writerow(['Temperature', 'N/A', '°C'])
                 writer.writerow(['Rainfall', 'N/A', 'mm'])
@@ -263,19 +266,123 @@ class ResultScreen(Screen):
                 writer.writerow(['Summary'])
                 writer.writerow(['Data will be available after analysis'])
             
-            # แสดง popup สำเร็จ
-            self.show_success(f"File saved successfully!\n\n{filepath}")
+            # แสดง popup สำเร็จพร้อมที่อยู่ไฟล์
+            message = f"File saved to:\n{filename}\n\nLocation: Downloads folder"
+            self.show_success(message, filepath)
             
         except Exception as e:
             self.show_error(f"Error saving file:\n{str(e)}")
     
-    def show_success(self, message):
-        content = BoxLayout(orientation='vertical', padding=20)
-        content.add_widget(Label(
-            text=message,
+    def show_success(self, message, filepath=None):
+        content = BoxLayout(orientation='vertical', padding=20, spacing=15)
+        
+        # ไอคอนสำเร็จ
+        success_label = Label(
+            text="✓",
+            font_size='48sp',
+            size_hint_y=None,
+            height=60,
             color=(0.2, 0.7, 0.3, 1),
-            font_size='14sp'
-        ))
+            bold=True
+        )
+        content.add_widget(success_label)
+        
+        # ข้อความหลัก
+        main_label = Label(
+            text="Download Complete!",
+            font_size='18sp',
+            size_hint_y=None,
+            height=30,
+            color=(0.2, 0.2, 0.2, 1),
+            bold=True
+        )
+        content.add_widget(main_label)
+        
+        # ข้อความรายละเอียด
+        detail_label = Label(
+            text=message,
+            color=(0.4, 0.4, 0.4, 1),
+            font_size='13sp',
+            size_hint_y=None,
+            height=60,
+            halign='center',
+            valign='middle'
+        )
+        detail_label.bind(size=lambda obj, size: setattr(obj, 'text_size', (size[0] - 40, None)))
+        content.add_widget(detail_label)
+        
+        # ปุ่มเปิดโฟลเดอร์
+        if filepath:
+            button_box = BoxLayout(
+                orientation='horizontal',
+                size_hint_y=None,
+                height=50,
+                spacing=10,
+                padding=[20, 0]
+            )
+            
+            open_folder_btn = Button(
+                text="Open Folder",
+                size_hint=(0.5, None),
+                height=45,
+                background_normal='',
+                background_color=(0, 0, 0, 0),
+                color=(1, 1, 1, 1),
+                font_size='14sp',
+                bold=True
+            )
+            
+            # Canvas สำหรับปุ่ม
+            with open_folder_btn.canvas.before:
+                Color(0.2, 0.7, 0.3, 1)
+                folder_btn_rect = RoundedRectangle(
+                    pos=open_folder_btn.pos,
+                    size=open_folder_btn.size,
+                    radius=[8]
+                )
+            open_folder_btn.bind(pos=lambda obj, pos: setattr(folder_btn_rect, 'pos', pos))
+            open_folder_btn.bind(size=lambda obj, size: setattr(folder_btn_rect, 'size', size))
+            
+            # เปิดโฟลเดอร์
+            def open_folder(instance):
+                folder_path = os.path.dirname(filepath)
+                
+                try:
+                    if platform.system() == "Windows":
+                        subprocess.Popen(f'explorer /select,"{filepath}"')
+                    elif platform.system() == "Darwin":  # macOS
+                        subprocess.Popen(["open", "-R", filepath])
+                    else:  # Linux
+                        subprocess.Popen(["xdg-open", folder_path])
+                except Exception as e:
+                    print(f"Error opening folder: {e}")
+            
+            open_folder_btn.bind(on_release=open_folder)
+            
+            close_btn = Button(
+                text="Close",
+                size_hint=(0.5, None),
+                height=45,
+                background_normal='',
+                background_color=(0, 0, 0, 0),
+                color=(0.4, 0.4, 0.4, 1),
+                font_size='14sp',
+                bold=True
+            )
+            
+            with close_btn.canvas.before:
+                Color(0.9, 0.9, 0.9, 1)
+                close_btn_rect = RoundedRectangle(
+                    pos=close_btn.pos,
+                    size=close_btn.size,
+                    radius=[8]
+                )
+            close_btn.bind(pos=lambda obj, pos: setattr(close_btn_rect, 'pos', pos))
+            close_btn.bind(size=lambda obj, size: setattr(close_btn_rect, 'size', size))
+            
+            button_box.add_widget(close_btn)
+            button_box.add_widget(open_folder_btn)
+            content.add_widget(button_box)
         
         with content.canvas.before:
             Color(1, 1, 1, 1)
@@ -288,13 +395,16 @@ class ResultScreen(Screen):
         content.bind(size=lambda obj, size: setattr(rect, 'size', size))
         
         popup = Popup(
-            title='Success',
+            title='',
             content=content,
-            size_hint=(0.7, 0.4),
+            size_hint=(0.6, 0.55),
             background='',
-            separator_color=(0.2, 0.7, 0.3, 1),
-            title_color=(0.2, 0.7, 0.3, 1)
+            separator_height=0
         )
+        
+        if filepath:
+            close_btn.bind(on_release=popup.dismiss)
+        
         popup.open()
     
     def show_error(self, message):
