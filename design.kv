@@ -1,4 +1,76 @@
-#:kivy 2.0
+<ResultScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.95, 0.97, 1, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: 0
+        
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: 70
+            padding: [20, 10, 20, 10]
+            spacing: 15
+            canvas.before:
+                Color:
+                    rgba: 1, 1, 1, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            
+            Label:
+                text: "WHATWEATHER"
+                font_size: '28sp'
+                bold: True
+                color: 0.25, 0.6, 1, 1
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
+                size_hint_x: 0.5
+            
+            Widget:
+                size_hint_x: 0.2
+            
+            Button:
+                text: "New Predict"
+                size_hint: None, None
+                size: 130, 45
+                background_normal: ''
+                background_color: 0, 0, 0, 0
+                color: 0.25, 0.6, 1, 1
+                font_size: '13sp'
+                bold: True
+                on_release: root.manager.current = "main"
+                canvas.before:
+                    Color:
+                        rgba: (0.9, 0.9, 0.92, 1) if self.state == 'normal' else (0.85, 0.85, 0.87, 1)
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [8]
+            
+            Button:
+                text: "Download CSV"
+                size_hint: None, None
+                size: 140, 45
+                background_normal: ''
+                background_color: 0, 0, 0, 0
+                color: 1, 1, 1, 1
+                font_size: '13sp'
+                bold: True
+                on_release: root.download_csv()
+                canvas.before:
+                    Color:
+                        rgba: (0.25, 0.6, 1, 1) if self.state == 'normal' else (0.2, 0.5, 0.9, 1)
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [8]#:kivy 2.0
 
 <WeatherCard>:
     orientation: 'vertical'
@@ -47,152 +119,168 @@
 
 <FormContentFrame>:
     orientation: 'vertical'
-    padding: 25
-    spacing: 15
+    padding: 30
+    spacing: 20
     size_hint_y: None
-    height: 400
+    size_hint_x: None 
+    width: 1000
+    height: 700
+    pos_hint: {"center_x": 0.5, "center_y": 0.5}
 
     canvas.before:
         Color:
-            rgba: 0.95, 0.95, 0.97, 1
+            rgba: 1, 1, 1, 1
         RoundedRectangle:
             pos: self.pos
             size: self.size
-            radius: [15]
-        Color:
-            rgba: 0.85, 0.85, 0.87, 1
-        Line:
-            rounded_rectangle: self.x, self.y, self.width, self.height, 15
-            width: 1.5
+            radius: [20]
 
     BoxLayout:
         orientation: 'vertical'
-        spacing: 5
+        spacing: 8
         size_hint_y: None
-        height: 70
+        height: 90
         
-        Label:
-            text: "Location"
+        BoxLayout:
+            orientation: 'horizontal'
             size_hint_y: None
-            height: 25
-            halign: 'left'
-            valign: 'middle'
-            text_size: self.size
-            font_size: '14sp'
-            color: 0.3, 0.3, 0.3, 1
-            bold: True
+            height: 30
+            spacing: 8
+            
+            
+            Label:
+                text: "Location (City, Country)"
+                size_hint_y: None
+                height: 30
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
+                font_size: '15sp'
+                color: 0.2, 0.2, 0.2, 1
+                bold: True
         
         DarkTextInput:
             id: location_input
-            hint_text: "e.g., Bangkok, New York, Tokyo"
+            hint_text: "Bangkok, Thailand"
             size_hint_y: None
-            height: 45
+            height: 50
             multiline: False
             font_size: '16sp'
-            padding: [15, (self.height - self.line_height) / 2]
+            padding: [20, (self.height - self.line_height) / 2]
             foreground_color: 0.15, 0.15, 0.15, 1
-            cursor_color: 0.2, 0.6, 1, 1
-            hint_text_color: 0.7, 0.7, 0.7, 1
+            cursor_color: 0.25, 0.6, 1, 1
+            hint_text_color: 0.65, 0.65, 0.65, 1
             background_normal: ''
             background_active: ''
-            selection_color: 0.2, 0.6, 1, 0.3
-            bold: True
+            selection_color: 0.25, 0.6, 1, 0.3
+            bold: False
             input_filter: lambda text, from_undo: text if all(ord(c) < 128 for c in text) else ''
             on_text: app.root.get_screen('main').on_location_input_change(self.text)
             canvas.before:
                 Color:
-                    rgba: 1, 1, 1, 1
+                    rgba: 0.96, 0.96, 0.98, 1
                 RoundedRectangle:
                     pos: self.pos
                     size: self.size
-                    radius: [8]
+                    radius: [12]
                 Color:
-                    rgba: (0.2, 0.6, 1, 1) if self.focus else (0.85, 0.85, 0.87, 1)
+                    rgba: (0.25, 0.6, 1, 1) if self.focus else (0.88, 0.88, 0.90, 1)
                 Line:
-                    rounded_rectangle: self.x, self.y, self.width, self.height, 8
+                    rounded_rectangle: self.x, self.y, self.width, self.height, 12
                     width: 2 if self.focus else 1
 
     BoxLayout:
         orientation: 'vertical'
-        spacing: 5
+        spacing: 8
         size_hint_y: None
-        height: 70
+        height: 90
         
-        Label:
-            text: "Target Date"
+        BoxLayout:
+            orientation: 'horizontal'
             size_hint_y: None
-            height: 25
-            halign: 'left'
-            valign: 'middle'
-            text_size: self.size
-            font_size: '14sp'
-            color: 0.3, 0.3, 0.3, 1
-            bold: True
+            height: 30
+            spacing: 8
+            
+            Label:
+                text: "Date"
+                size_hint_y: None
+                height: 30
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
+                font_size: '15sp'
+                color: 0.2, 0.2, 0.2, 1
+                bold: True
         
         DarkTextInput:
             id: date_input
-            hint_text: "YYYY-MM-DD (e.g., 2025-12-31)"
+            hint_text: "dd/mm/yyyy"
             multiline: False
             size_hint_y: None
-            height: 45
+            height: 50
             font_size: '16sp'
-            padding: [15, (self.height - self.line_height) / 2]
+            padding: [20, (self.height - self.line_height) / 2]
             foreground_color: 0.2, 0.2, 0.2, 1
-            cursor_color: 0.2, 0.6, 1, 1
+            cursor_color: 0.25, 0.6, 1, 1
             hint_text_color: 0.65, 0.65, 0.65, 1
             background_normal: ''
             background_active: ''
-            selection_color: 0.2, 0.6, 1, 0.3
-            bold: True
+            selection_color: 0.25, 0.6, 1, 0.3
+            bold: False
             canvas.before:
                 Color:
-                    rgba: 1, 1, 1, 1
+                    rgba: 0.96, 0.96, 0.98, 1
                 RoundedRectangle:
                     pos: self.pos
                     size: self.size
-                    radius: [8]
+                    radius: [12]
                 Color:
-                    rgba: (0.2, 0.6, 1, 1) if self.focus else (0.85, 0.85, 0.87, 1)
+                    rgba: (0.25, 0.6, 1, 1) if self.focus else (0.88, 0.88, 0.90, 1)
                 Line:
-                    rounded_rectangle: self.x, self.y, self.width, self.height, 8
+                    rounded_rectangle: self.x, self.y, self.width, self.height, 12
                     width: 2 if self.focus else 1
     
     BoxLayout:
         orientation: 'vertical'
-        spacing: 5
+        spacing: 8
         size_hint_y: None
-        height: 140
+        height: 200
         
-        Label:
-            text: "Additional Parameters (Select 2)"
+        BoxLayout:
+            orientation: 'horizontal'
             size_hint_y: None
-            height: 25
-            halign: 'left'
-            valign: 'middle'
-            text_size: self.size
-            font_size: '14sp'
-            color: 0.3, 0.3, 0.3, 1
-            bold: True
+            height: 30
+            spacing: 8
+            
+            Label:
+                text: "Optional Parameters"
+                size_hint_y: None
+                height: 30
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
+                font_size: '13sp'
+                color: 0.4, 0.4, 0.4, 1
         
         GridLayout:
             cols: 2
-            spacing: 10
+            spacing: 15
             size_hint_y: None
-            height: 110
-            padding: [10, 5]
+            height: 160
+            padding: [15, 10]
             
             BoxLayout:
                 orientation: 'horizontal'
-                spacing: 8
+                spacing: 10
                 CheckBox:
                     id: cb_humidity
                     size_hint: None, None
-                    size: 25, 25
-                    color: 0.2, 0.6, 1, 1
+                    size: 22, 22
+                    color: 0.25, 0.6, 1, 1
                     on_active: app.root.get_screen('main').on_checkbox_change(self, 'RH2M')
                 Label:
-                    text: "Humidity"
-                    font_size: '13sp'
+                    text: "Humidity (Mean)"
+                    font_size: '14sp'
                     color: 0.3, 0.3, 0.3, 1
                     halign: 'left'
                     valign: 'middle'
@@ -200,16 +288,16 @@
             
             BoxLayout:
                 orientation: 'horizontal'
-                spacing: 8
+                spacing: 10
                 CheckBox:
-                    id: cb_pressure
+                    id: cb_humidity_max
                     size_hint: None, None
-                    size: 25, 25
-                    color: 0.2, 0.6, 1, 1
-                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'PS')
+                    size: 22, 22
+                    color: 0.25, 0.6, 1, 1
+                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'RH2M_MAX')
                 Label:
-                    text: "Pressure"
-                    font_size: '13sp'
+                    text: "Humidity (Max)"
+                    font_size: '14sp'
                     color: 0.3, 0.3, 0.3, 1
                     halign: 'left'
                     valign: 'middle'
@@ -217,16 +305,16 @@
             
             BoxLayout:
                 orientation: 'horizontal'
-                spacing: 8
+                spacing: 10
                 CheckBox:
-                    id: cb_cloud
+                    id: cb_humidity_min
                     size_hint: None, None
-                    size: 25, 25
-                    color: 0.2, 0.6, 1, 1
-                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'CLOUD_AMT')
+                    size: 22, 22
+                    color: 0.25, 0.6, 1, 1
+                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'RH2M_MIN')
                 Label:
-                    text: "Cloud Cover"
-                    font_size: '13sp'
+                    text: "Humidity (Min)"
+                    font_size: '14sp'
                     color: 0.3, 0.3, 0.3, 1
                     halign: 'left'
                     valign: 'middle'
@@ -234,16 +322,84 @@
             
             BoxLayout:
                 orientation: 'horizontal'
-                spacing: 8
+                spacing: 10
                 CheckBox:
-                    id: cb_solar
+                    id: cb_snowfall
                     size_hint: None, None
-                    size: 25, 25
-                    color: 0.2, 0.6, 1, 1
-                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'ALLSKY_SFC_SW_DWN')
+                    size: 22, 22
+                    color: 0.25, 0.6, 1, 1
+                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'SNOWFALL')
                 Label:
-                    text: "Solar Radiation"
-                    font_size: '13sp'
+                    text: "Snowfall"
+                    font_size: '14sp'
+                    color: 0.3, 0.3, 0.3, 1
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+            
+            BoxLayout:
+                orientation: 'horizontal'
+                spacing: 10
+                CheckBox:
+                    id: cb_snow_depth
+                    size_hint: None, None
+                    size: 22, 22
+                    color: 0.25, 0.6, 1, 1
+                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'SNOW_DEPTH')
+                Label:
+                    text: "Snow Depth"
+                    font_size: '14sp'
+                    color: 0.3, 0.3, 0.3, 1
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+            
+            BoxLayout:
+                orientation: 'horizontal'
+                spacing: 10
+                CheckBox:
+                    id: cb_wave_height
+                    size_hint: None, None
+                    size: 22, 22
+                    color: 0.25, 0.6, 1, 1
+                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'WAVE_HEIGHT')
+                Label:
+                    text: "Wave Height"
+                    font_size: '14sp'
+                    color: 0.3, 0.3, 0.3, 1
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+            
+            BoxLayout:
+                orientation: 'horizontal'
+                spacing: 10
+                CheckBox:
+                    id: cb_ocean_current
+                    size_hint: None, None
+                    size: 22, 22
+                    color: 0.25, 0.6, 1, 1
+                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'OCEAN_CURRENT')
+                Label:
+                    text: "Ocean Current"
+                    font_size: '14sp'
+                    color: 0.3, 0.3, 0.3, 1
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+            
+            BoxLayout:
+                orientation: 'horizontal'
+                spacing: 10
+                CheckBox:
+                    id: cb_swell_period
+                    size_hint: None, None
+                    size: 22, 22
+                    color: 0.25, 0.6, 1, 1
+                    on_active: app.root.get_screen('main').on_checkbox_change(self, 'SWELL_PERIOD')
+                Label:
+                    text: "Swell Period"
+                    font_size: '14sp'
                     color: 0.3, 0.3, 0.3, 1
                     halign: 'left'
                     valign: 'middle'
@@ -257,18 +413,18 @@
         id: form_content
         
     AnchorLayout:
-        anchor_x: 'right'
+        anchor_x: 'center'
         anchor_y: 'bottom'
         size_hint_y: None
-        height: 60
-        padding: [0, 10, 0, 0]
+        height: 80
+        padding: [0, 15, 0, 0]
         
         Button:
             id: start_button
-            text: "START"
+            text: "Prediction"
             size_hint: None, None
-            size: 120, 45
-            font_size: '16sp'
+            size: 280, 55
+            font_size: '17sp'
             bold: True
             background_normal: ''
             background_color: 0, 0, 0, 0
@@ -276,16 +432,16 @@
             on_release: app.root.get_screen('main').on_start_button_press()
             canvas.before:
                 Color:
-                    rgba: (0.2, 0.6, 1, 1) if self.state == 'normal' else (0.15, 0.5, 0.9, 1)
+                    rgba: (0.25, 0.6, 1, 1) if self.state == 'normal' else (0.2, 0.5, 0.9, 1)
                 RoundedRectangle:
                     pos: self.pos
                     size: self.size
-                    radius: [10]
+                    radius: [15]
 
 <DescriptionScreen>:
     canvas.before:
         Color:
-            rgba: 0.98, 0.98, 1, 1
+            rgba: 0.95, 0.97, 1, 1
         Rectangle:
             pos: self.pos
             size: self.size
@@ -310,7 +466,7 @@
                 size_hint_y: None
                 height: 60
                 bold: True
-                color: 0.2, 0.6, 1, 1
+                color: 0.25, 0.6, 1, 1
                 halign: 'center'
                 valign: 'middle'
             
@@ -319,7 +475,7 @@
                 font_size: '20sp'
                 size_hint_y: None
                 height: 40
-                color: 0.4, 0.4, 0.4, 1
+                color: 0.45, 0.45, 0.45, 1
                 halign: 'center'
                 valign: 'middle'
             
@@ -340,7 +496,7 @@
             on_release: root.go_to_main()
             canvas.before:
                 Color:
-                    rgba: (0.2, 0.6, 1, 1) if self.state == 'normal' else (0.15, 0.5, 0.9, 1)
+                    rgba: (0.25, 0.6, 1, 1) if self.state == 'normal' else (0.2, 0.5, 0.9, 1)
                 RoundedRectangle:
                     pos: self.pos
                     size: self.size
@@ -352,62 +508,50 @@
 <MainFormScreen>:
     canvas.before:
         Color:
-            rgba: 0.98, 0.98, 1, 1
+            rgba: 0.95, 0.97, 1, 1
         Rectangle:
             pos: self.pos
             size: self.size
     
     BoxLayout:
         orientation: 'vertical'
-        padding: 30
-        spacing: 15
+        padding: 20
+        spacing: 20
         
         BoxLayout:
             size_hint_y: None
-            height: 80
+            height: 100
+            orientation: 'vertical'
+            spacing: 5
             
             Label:
                 text: "WHATWEATHER"
-                font_size: '38sp'
+                font_size: '60sp'
                 bold: True
-                color: 0.2, 0.6, 1, 1
+                color: 0.25, 0.6, 1, 1
                 halign: 'center'
                 valign: 'middle'
+                size_hint_y: None
+                height: 60
         
         BoxLayout:
             orientation: 'horizontal'
-            spacing: 20
+            spacing: 30
             
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint_x: 0.45
-                
-                FormFrame:
-                    id: form_frame
+            Widget:
+                size_hint_x: 0.15
             
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint_x: 0.55
-                spacing: 10
-                BoxLayout:
-                    id: map_container
-                    canvas.before:
-                        Color:
-                            rgba: 0.95, 0.95, 0.97, 1
-                        RoundedRectangle:
-                            pos: self.pos
-                            size: self.size
-                            radius: [15]
-                        Color:
-                            rgba: 0.85, 0.85, 0.87, 1
-                        Line:
-                            rounded_rectangle: self.x, self.y, self.width, self.height, 15
-                            width: 1.5
+            FormFrame:
+                id: form_frame
+                size_hint_x: 0.7
+            
+            Widget:
+                size_hint_x: 0.15
 
 <LoadingScreen>:
     canvas.before:
         Color:
-            rgba: 0.98, 0.98, 1, 1
+            rgba: 0.95, 0.97, 1, 1
         Rectangle:
             pos: self.pos
             size: self.size
@@ -422,7 +566,7 @@
             text: "WHATWEATHER"
             font_size: '60sp'
             bold: True
-            color: 0.2, 0.6, 1, 1
+            color: 0.25, 0.6, 1, 1
             size_hint_y: None
             height: 70
             halign: 'center'
@@ -472,7 +616,6 @@
         orientation: 'vertical'
         spacing: 0
         
-        # Header Section - ด้านบน
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
@@ -535,7 +678,6 @@
                         size: self.size
                         radius: [8]
         
-        # ScrollView Content
         ScrollView:
             do_scroll_x: False
             do_scroll_y: True
@@ -547,7 +689,6 @@
                 size_hint_y: None
                 height: self.minimum_height
                 
-                # Location & Date Section
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_y: None
@@ -595,9 +736,8 @@
                         halign: 'left'
                         valign: 'middle'
                         text_size: self.size
-                        color: 0.2, 0.6, 1, 1
+                        color: 0.25, 0.6, 1, 1
                 
-                # Summary & Activities Section
                 BoxLayout:
                     orientation: 'horizontal'
                     size_hint_y: None
@@ -674,7 +814,6 @@
                                 height: self.minimum_height
                                 padding: [5, 5]
                 
-                # Map Section
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_y: None
@@ -690,7 +829,7 @@
                             radius: [12]
                     
                     Label:
-                        text: "Map"
+                        text: "Location Map"
                         font_size: '20sp'
                         bold: True
                         size_hint_y: None
@@ -709,15 +848,7 @@
                                 pos: self.pos
                                 size: self.size
                                 radius: [8]
-                        
-                        Label:
-                            text: "[Map will be displayed here]"
-                            font_size: '16sp'
-                            halign: 'center'
-                            valign: 'middle'
-                            color: 0.5, 0.5, 0.5, 1
                 
-                # Weather Data Table (Single box with 2 sections)
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_y: None
@@ -732,7 +863,6 @@
                             size: self.size
                             radius: [12]
                     
-                    # Main Title
                     Label:
                         text: "Weather Parameters"
                         font_size: '20sp'
@@ -744,7 +874,6 @@
                         text_size: self.size
                         color: 0.2, 0.2, 0.2, 1
                     
-                    # Table Header
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -782,7 +911,6 @@
                             valign: 'middle'
                             color: 0.2, 0.2, 0.2, 1
                     
-                    # Row 1
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -820,7 +948,6 @@
                             valign: 'middle'
                             color: 0.3, 0.3, 0.3, 1
                     
-                    # Row 2
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -858,7 +985,6 @@
                             valign: 'middle'
                             color: 0.3, 0.3, 0.3, 1
                     
-                    # Divider
                     Widget:
                         size_hint_y: None
                         height: 20
@@ -869,7 +995,6 @@
                                 pos: self.x, self.center_y
                                 size: self.width, 1
                     
-                    # Row 3
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -907,7 +1032,6 @@
                             valign: 'middle'
                             color: 0.3, 0.3, 0.3, 1
                     
-                    # Row 4
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -945,7 +1069,6 @@
                             valign: 'middle'
                             color: 0.3, 0.3, 0.3, 1
                 
-                # Graph Section
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_y: None

@@ -18,9 +18,8 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.image import AsyncImage
 from kivy.uix.scrollview import ScrollView
 from kivy.lang import Builder
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, RoundedRectangle, Line
 from kivy.properties import ListProperty, StringProperty
-from kivy.graphics import RoundedRectangle
 from kivy.clock import Clock
 from kivy_garden.mapview import MapView, MapMarkerPopup
 import re
@@ -59,265 +58,23 @@ class MainFormScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.selected_params = []
-        self.active_marker = None
-        self.map_initialized = False
-        self.red_dot = None  # จุดแดงอ้างอิง
+        self.location_coords = None  # เก็บพิกัด lat, lon
     
     def on_enter(self):
         self.ids.form_frame.ids.form_content.ids.location_input.text = ""
         self.ids.form_frame.ids.form_content.ids.date_input.text = ""
         self.selected_params = []
+        self.location_coords = None
     
+        # Reset checkboxes ตามที่มีใน design.kv
         self.ids.form_frame.ids.form_content.ids.cb_humidity.active = False
-        self.ids.form_frame.ids.form_content.ids.cb_pressure.active = False
-        self.ids.form_frame.ids.form_content.ids.cb_cloud.active = False
-        self.ids.form_frame.ids.form_content.ids.cb_solar.active = False
-    
-        if not self.map_initialized:
-            self.initialize_map()
-        else:
-            # Reset แผนที่
-            if self.active_marker:
-                try:
-                    self.mapview.remove_marker(self.active_marker)
-                except:
-                    pass
-                self.active_marker = None
-            
-            # ลบจุดแดงถ้ามี
-            if self.red_dot:
-                try:
-                    self.mapview.remove_widget(self.red_dot)
-                except:
-                    pass
-                self.red_dot = None
-        
-        # Reset Label
-        if hasattr(self, 'coord_label'):
-            self.coord_label.text = 'Lat: -, Lon: -'
-        
-            self.mapview.center_on(20, 0)
-            self.mapview.zoom = 2
-    
-    def initialize_map(self):
-        try:
-            map_container = self.ids.map_container
-            map_container.clear_widgets()
-        
-            self.mapview = MapView(
-                zoom=2,
-                lat=20,
-                lon=0,
-                snap_to_zoom=False, 
-                double_tap_zoom=False, 
-                map_source='osm'
-            )
-            self.mapview.bind(on_touch_down=self.on_map_touch)
-            self.mapview.bind(on_touch_up=self.on_map_touch_up)
-        
-            map_container.add_widget(self.mapview)
-        
-            # ไม่มีหมุดตอนเริ่มต้น
-            self.active_marker = None
-            self.red_dot = None
-        
-            # สร้าง Label แสดง Lat/Lon
-            self.coord_label = Label(
-                text='Lat: -, Lon: -',
-                size_hint=(None, None),
-                size=(150, 30),
-                pos_hint={'right': 0.98, 'top': 0.98},
-                color=(0.2, 0.2, 0.2, 1),
-                font_size='12sp',
-                bold=True
-            )
-        
-            # เพิ่ม canvas พื้นหลังให้ Label
-            with self.coord_label.canvas.before:
-                from kivy.graphics import Color, RoundedRectangle
-                Color(1, 1, 1, 0.9)
-                self.coord_rect = RoundedRectangle(
-                    pos=self.coord_label.pos,
-                    size=self.coord_label.size,
-                    radius=[8]
-                )
-        
-            self.coord_label.bind(pos=self._update_coord_rect)
-            self.coord_label.bind(size=self._update_coord_rect)
-        
-            map_container.add_widget(self.coord_label)
-        
-            self.map_initialized = True
-        except Exception as e:
-            print(f"Error initializing map: {e}")
-
-    def _update_coord_rect(self, *args):
-        """อัปเดตตำแหน่งและขนาดของพื้นหลัง Label"""
-        self.coord_rect.pos = self.coord_label.pos
-        self.coord_rect.size = self.coord_label.size
-    
-    def on_map_touch(self, instance, touch):
-        """ดักจับ touch down event บนแผนที่"""
-        # ตรวจสอบว่าคลิกภายในพื้นที่แผนที่
-        if not self.mapview.collide_point(*touch.pos):
-            return False
-        
-        # ตรวจสอบว่าคลิกที่หมุดหรือไม่
-        if self.active_marker and self.active_marker.collide_point(*touch.pos):
-            # ถ้า double-click ที่หมุด ให้สามารถย้ายหมุดได้
-            if touch.is_double_tap:
-                touch.ud['moving_marker'] = True
-                return True
-            else:
-                # คลิกครั้งเดียว ให้ center แผนที่ไปที่หมุด
-                self.mapview.center_on(self.active_marker.lat, self.active_marker.lon)
-                return True
-        
-        # Double-click บนแผนที่ -> ปักหมุดใหม่
-        if touch.is_double_tap:
-            lat, lon = self.mapview.get_latlon_at(*touch.pos)
-            self._place_marker(lat, lon)
-            return True
-        
-        # คลิกขวา -> วางจุดแดงอ้างอิง (ป้องกันแผนที่เคลื่อนไหว)
-        if touch.button == 'right':
-            self._place_red_dot(touch.pos)
-            return True
-        
-        # Mouse scroll -> ซูม
-        if touch.button == 'scrolldown':
-            self.mapview.zoom = max(2, self.mapview.zoom - 1)
-            return True
-        elif touch.button == 'scrollup':
-            self.mapview.zoom = min(20, self.mapview.zoom + 1)
-            return True
-        
-        # คลิกซ้ายปกติ -> ให้แผนที่จัดการเอง (pan)
-        return False
-    
-    def on_map_touch_up(self, instance, touch):
-        """ดักจับ touch up event สำหรับการย้ายหมุด"""
-        if touch.ud.get('moving_marker'):
-            # ย้ายหมุดไปตำแหน่งใหม่
-            lat, lon = self.mapview.get_latlon_at(*touch.pos)
-            self._place_marker(lat, lon)
-            return True
-        return False
-    
-    def _place_red_dot(self, pos):
-        """วางจุดแดงอ้างอิงบนแผนที่"""
-        from kivy.uix.widget import Widget
-        from kivy.graphics import Color, Ellipse
-        
-        # ลบจุดแดงเก่า
-        if self.red_dot:
-            try:
-                self.mapview.remove_widget(self.red_dot)
-            except:
-                pass
-        
-        # สร้างจุดแดงใหม่
-        self.red_dot = Widget(size=(10, 10))
-        with self.red_dot.canvas:
-            Color(1, 0, 0, 0.8)  # สีแดง
-            Ellipse(pos=(pos[0] - 5, pos[1] - 5), size=(10, 10))
-        
-        self.red_dot.pos = (pos[0] - 5, pos[1] - 5)
-        self.mapview.add_widget(self.red_dot)
-    
-    def _place_marker(self, lat, lon):
-        """วางหมุดใหม่และทำ reverse geocoding"""
-        # ลบหมุดเก่า
-        self._remove_active_marker()
-        
-        # ลบจุดแดงถ้ามี
-        if self.red_dot:
-            try:
-                self.mapview.remove_widget(self.red_dot)
-            except:
-                pass
-            self.red_dot = None
-        
-        # สร้างหมุดใหม่
-        self.active_marker = MapMarkerPopup(
-            lat=lat, 
-            lon=lon
-        )
-        self.mapview.add_marker(self.active_marker)
-        
-        # อัปเดต Label แสดง Lat/Lon
-        self.coord_label.text = f'Lat: {lat:.4f}, Lon: {lon:.4f}'
-        
-        # ค้นหาชื่อสถานที่ในพื้นหลัง
-        Thread(target=self._reverse_geocode, args=(lat, lon), daemon=True).start()
-
-    def _remove_active_marker(self):
-        """ลบหมุดที่แสดงอยู่ออกจากแผนที่"""
-        if self.active_marker:
-            try:
-                self.mapview.remove_marker(self.active_marker)
-            except Exception as e:
-                print(f"Could not remove marker: {e}")
-            self.active_marker = None
-
-    def _reverse_geocode(self, lat, lon):
-        """ค้นหาชื่อสถานที่จากพิกัด Lat/Lon"""
-        try:
-            headers = {
-                'User-Agent': 'WhatWeather/1.0',
-                'Accept-Language': 'en'
-            }
-            params = {
-                'lat': lat, 
-                'lon': lon, 
-                'format': 'json', 
-                'addressdetails': 1,
-                'accept-language': 'en'
-            }
-            response = requests.get(
-                'https://nominatim.openstreetmap.org/reverse', 
-                params=params, 
-                headers=headers, 
-                timeout=10
-            )
-            response.raise_for_status()
-            result = response.json()
-        
-            # แยกเอาเฉพาะ city และ state/country
-            address = result.get('address', {})
-        
-            # ลองหาชื่อเมือง
-            city = (address.get('city') or 
-                    address.get('town') or 
-                    address.get('village') or 
-                    address.get('municipality') or
-                    address.get('county'))
-        
-            # ลองหาชื่อรัฐ/ประเทศ
-            state = (address.get('state') or 
-                     address.get('province') or 
-                     address.get('region'))
-        
-            country = address.get('country')
-        
-            # สร้างชื่อสถานที่แบบสั้น
-            location_parts = []
-            if city:
-                location_parts.append(city)
-            if state:
-                location_parts.append(state)
-            elif country:  # ถ้าไม่มี state ให้ใช้ country แทน
-                location_parts.append(country)
-        
-            display_name = ', '.join(location_parts) if location_parts else result.get('display_name', 'Unknown Location')
-        
-            Clock.schedule_once(lambda dt: self._update_location_input(display_name), 0)
-        except Exception as e:
-            print(f"Reverse geocode error: {e}")
-    
-    def _update_location_input(self, location_name):
-        """อัปเดตช่อง location input ด้วยชื่อสถานที่"""
-        self.ids.form_frame.ids.form_content.ids.location_input.text = location_name
+        self.ids.form_frame.ids.form_content.ids.cb_humidity_max.active = False
+        self.ids.form_frame.ids.form_content.ids.cb_humidity_min.active = False
+        self.ids.form_frame.ids.form_content.ids.cb_snowfall.active = False
+        self.ids.form_frame.ids.form_content.ids.cb_snow_depth.active = False
+        self.ids.form_frame.ids.form_content.ids.cb_wave_height.active = False
+        self.ids.form_frame.ids.form_content.ids.cb_ocean_current.active = False
+        self.ids.form_frame.ids.form_content.ids.cb_swell_period.active = False
     
     def on_location_input_change(self, text):
         """เรียกใช้เมื่อผู้ใช้พิมพ์ใน location input"""
@@ -328,7 +85,7 @@ class MainFormScreen(Screen):
         Thread(target=self._search_location, args=(query,), daemon=True).start()
     
     def _search_location(self, query):
-        """ค้นหาสถานที่จากชื่อ"""
+        """ค้นหาสถานที่และเก็บพิกัด"""
         try:
             headers = {
                 'User-Agent': 'WhatWeather/1.0',
@@ -353,22 +110,11 @@ class MainFormScreen(Screen):
             if results:
                 result = results[0]
                 lat, lon = float(result['lat']), float(result['lon'])
-            
-                Clock.schedule_once(lambda dt: self._update_map(lat, lon), 0)
+                self.location_coords = (lat, lon)
+                print(f"Found location: {query} at {lat}, {lon}")
         except Exception as e:
             print(f"Search location error: {e}")
-    
-    def _update_map(self, lat, lon):
-        """อัปเดตแผนที่และวางหมุดใหม่จากการค้นหา"""
-        if not self.map_initialized:
-            return
-    
-        # วางหมุดใหม่
-        self._place_marker(lat, lon)
-    
-        # เลื่อนแผนที่และซูม
-        self.mapview.center_on(lat, lon)
-        self.mapview.zoom = 13
+            self.location_coords = None
 
     def on_checkbox_change(self, checkbox, param_name):
         """จัดการการเลือก checkbox พารามิเตอร์"""
@@ -428,20 +174,26 @@ class MainFormScreen(Screen):
             self.show_warning("Please enter location in English only!\n\nExample: Bangkok, New York, Tokyo")
             return
         
-        date_pattern = r'^\d{4}-\d{2}-\d{2}$'
-        if not re.match(date_pattern, date_input):
-            self.show_warning("Invalid date format!\nPlease use YYYY-MM-DD\nExample: 2025-12-31")
+        # แปลงวันที่จากรูปแบบ dd/mm/yyyy เป็น yyyy-mm-dd
+        try:
+            date_obj = datetime.strptime(date_input, '%d/%m/%Y')
+            formatted_date = date_obj.strftime('%Y-%m-%d')
+        except ValueError:
+            self.show_warning("Invalid date format!\nPlease use DD/MM/YYYY\nExample: 31/12/2025")
             return
 
         result_screen = self.manager.get_screen("result")
-        result_screen.update_result(location_name, date_input, self.selected_params)
+        result_screen.update_result(location_name, formatted_date, self.selected_params, self.location_coords)
         self.manager.current = "result"
+
 class ResultScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.current_location = ""
         self.current_date = ""
         self.selected_params = []
+        self.location_coords = None
+        self.map_initialized = False
         
         self.param_labels = {
             'T2M': 'Temperature',
@@ -454,10 +206,11 @@ class ResultScreen(Screen):
             'ALLSKY_SFC_SW_DWN': 'Solar Radiation'
         }
     
-    def update_result(self, location, date, selected_params=[]):
+    def update_result(self, location, date, selected_params=[], coords=None):
         self.current_location = location
         self.current_date = date
         self.selected_params = selected_params
+        self.location_coords = coords
         
         self.ids.location_value.text = location
         self.ids.date_value.text = date
@@ -503,6 +256,46 @@ class ResultScreen(Screen):
         self.ids.table2_row2_col1.text = "PM2.5"
         self.ids.table2_row2_col2.text = "- μg/m³"
         self.ids.table2_row2_col3.text = "Good"
+        
+        # Initialize map
+        self.initialize_map()
+    
+    def initialize_map(self):
+        """สร้างแผนที่และปักหมุดตำแหน่ง"""
+        try:
+            map_container = self.ids.map_box
+            map_container.clear_widgets()
+            
+            if self.location_coords:
+                lat, lon = self.location_coords
+                self.mapview = MapView(
+                    zoom=10,
+                    lat=lat,
+                    lon=lon,
+                    snap_to_zoom=False,
+                    double_tap_zoom=True,
+                    map_source='osm'
+                )
+                
+                # เพิ่มหมุด
+                marker = MapMarkerPopup(lat=lat, lon=lon)
+                self.mapview.add_marker(marker)
+                
+                map_container.add_widget(self.mapview)
+                self.map_initialized = True
+            else:
+                # ถ้าไม่มีพิกัด แสดงข้อความ
+                no_map_label = Label(
+                    text="[Map location not available]",
+                    font_size='16sp',
+                    halign='center',
+                    valign='middle',
+                    color=(0.5, 0.5, 0.5, 1)
+                )
+                map_container.add_widget(no_map_label)
+                
+        except Exception as e:
+            print(f"Error initializing map: {e}")
     
     def download_csv(self):
         try:
