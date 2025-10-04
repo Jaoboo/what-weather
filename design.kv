@@ -98,6 +98,7 @@
             selection_color: 0.2, 0.6, 1, 0.3
             bold: True
             input_filter: lambda text, from_undo: text if all(ord(c) < 128 for c in text) else ''
+            on_text: app.root.get_screen('main').on_location_input_change(self.text)
             canvas.before:
                 Color:
                     rgba: 1, 1, 1, 1
@@ -358,38 +359,50 @@
     
     BoxLayout:
         orientation: 'vertical'
-        padding: 40
-        spacing: 0
+        padding: 30
+        spacing: 15
         
         BoxLayout:
             size_hint_y: None
-            height: 100
+            height: 80
             
             Label:
                 text: "WHATWEATHER"
-                font_size: '42sp'
+                font_size: '38sp'
                 bold: True
                 color: 0.2, 0.6, 1, 1
                 halign: 'center'
                 valign: 'middle'
         
-        Widget:
-            size_hint_y: 0.3
-        
-        AnchorLayout:
-            anchor_x: 'center'
-            anchor_y: 'center'
+        BoxLayout:
+            orientation: 'horizontal'
+            spacing: 20
             
             BoxLayout:
                 orientation: 'vertical'
-                size_hint: None, None
-                size: 500, 470
+                size_hint_x: 0.45
                 
                 FormFrame:
                     id: form_frame
-        
-        Widget:
-            size_hint_y: 0.3
+            
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: 0.55
+                spacing: 10
+                BoxLayout:
+                    id: map_container
+                    canvas.before:
+                        Color:
+                            rgba: 0.95, 0.95, 0.97, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [15]
+                        Color:
+                            rgba: 0.85, 0.85, 0.87, 1
+                        Line:
+                            rounded_rectangle: self.x, self.y, self.width, self.height, 15
+                            width: 1.5
 
 <LoadingScreen>:
     canvas.before:
@@ -704,13 +717,22 @@
                             valign: 'middle'
                             color: 0.5, 0.5, 0.5, 1
                 
-                # Weather Parameters Cards (6 cards in grid)
+                # Weather Data Table (Single box with 2 sections)
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_y: None
-                    height: 500
-                    spacing: 15
+                    height: 460
+                    padding: 20
+                    spacing: 10
+                    canvas.before:
+                        Color:
+                            rgba: 1, 1, 1, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [12]
                     
+                    # Main Title
                     Label:
                         text: "Weather Parameters"
                         font_size: '20sp'
@@ -722,339 +744,206 @@
                         text_size: self.size
                         color: 0.2, 0.2, 0.2, 1
                     
-                    GridLayout:
-                        cols: 3
-                        spacing: 15
+                    # Table Header
+                    BoxLayout:
+                        orientation: 'horizontal'
                         size_hint_y: None
-                        height: 450
+                        height: 35
+                        spacing: 5
+                        canvas.before:
+                            Color:
+                                rgba: 0.2, 0.6, 1, 0.15
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [6]
                         
-                        # Card 1: Temperature
-                        BoxLayout:
-                            orientation: 'vertical'
-                            spacing: 0
-                            canvas.before:
-                                Color:
-                                    rgba: 1, 1, 1, 1
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [12]
-                            
-                            # Header
-                            BoxLayout:
-                                size_hint_y: None
-                                height: 45
-                                padding: 15
-                                canvas.before:
-                                    Color:
-                                        rgba: 0.2, 0.6, 1, 0.2
-                                    RoundedRectangle:
-                                        pos: self.pos
-                                        size: self.size
-                                        radius: [12, 12, 0, 0]
-                                
-                                Label:
-                                    text: "Temperature"
-                                    font_size: '15sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.2, 0.2, 1
-                            
-                            # Content
-                            BoxLayout:
-                                orientation: 'vertical'
-                                padding: 15
-                                spacing: 8
-                                
-                                Label:
-                                    id: param1_value
-                                    text: "-"
-                                    font_size: '28sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.6, 1, 1
-                                
-                                Label:
-                                    id: param1_status
-                                    text: "-"
-                                    font_size: '12sp'
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.5, 0.5, 0.5, 1
+                        Label:
+                            text: "Parameter"
+                            font_size: '14sp'
+                            bold: True
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.2, 0.2, 0.2, 1
                         
-                        # Card 2: Rainfall
-                        BoxLayout:
-                            orientation: 'vertical'
-                            spacing: 0
-                            canvas.before:
-                                Color:
-                                    rgba: 1, 1, 1, 1
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [12]
-                            
-                            BoxLayout:
-                                size_hint_y: None
-                                height: 45
-                                padding: 15
-                                canvas.before:
-                                    Color:
-                                        rgba: 0.2, 0.6, 1, 0.2
-                                    RoundedRectangle:
-                                        pos: self.pos
-                                        size: self.size
-                                        radius: [12, 12, 0, 0]
-                                
-                                Label:
-                                    text: "Rainfall"
-                                    font_size: '15sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.2, 0.2, 1
-                            
-                            BoxLayout:
-                                orientation: 'vertical'
-                                padding: 15
-                                spacing: 8
-                                
-                                Label:
-                                    id: param2_value
-                                    text: "-"
-                                    font_size: '28sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.6, 1, 1
-                                
-                                Label:
-                                    id: param2_status
-                                    text: "-"
-                                    font_size: '12sp'
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.5, 0.5, 0.5, 1
+                        Label:
+                            text: "Value"
+                            font_size: '14sp'
+                            bold: True
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.2, 0.2, 0.2, 1
                         
-                        # Card 3: Wind Speed
-                        BoxLayout:
-                            orientation: 'vertical'
-                            spacing: 0
-                            canvas.before:
-                                Color:
-                                    rgba: 1, 1, 1, 1
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [12]
-                            
-                            BoxLayout:
-                                size_hint_y: None
-                                height: 45
-                                padding: 15
-                                canvas.before:
-                                    Color:
-                                        rgba: 0.2, 0.6, 1, 0.2
-                                    RoundedRectangle:
-                                        pos: self.pos
-                                        size: self.size
-                                        radius: [12, 12, 0, 0]
-                                
-                                Label:
-                                    text: "Wind Speed"
-                                    font_size: '15sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.2, 0.2, 1
-                            
-                            BoxLayout:
-                                orientation: 'vertical'
-                                padding: 15
-                                spacing: 8
-                                
-                                Label:
-                                    id: param3_value
-                                    text: "-"
-                                    font_size: '28sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.6, 1, 1
-                                
-                                Label:
-                                    id: param3_status
-                                    text: "-"
-                                    font_size: '12sp'
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.5, 0.5, 0.5, 1
+                        Label:
+                            text: "Status"
+                            font_size: '14sp'
+                            bold: True
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.2, 0.2, 0.2, 1
+                    
+                    # Row 1
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: 35
+                        spacing: 5
+                        canvas.before:
+                            Color:
+                                rgba: 0.98, 0.98, 0.98, 1
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [6]
                         
-                        # Card 4: PM2.5
-                        BoxLayout:
-                            orientation: 'vertical'
-                            spacing: 0
-                            canvas.before:
-                                Color:
-                                    rgba: 1, 1, 1, 1
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [12]
-                            
-                            BoxLayout:
-                                size_hint_y: None
-                                height: 45
-                                padding: 15
-                                canvas.before:
-                                    Color:
-                                        rgba: 0.2, 0.6, 1, 0.2
-                                    RoundedRectangle:
-                                        pos: self.pos
-                                        size: self.size
-                                        radius: [12, 12, 0, 0]
-                                
-                                Label:
-                                    text: "PM2.5"
-                                    font_size: '15sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.2, 0.2, 1
-                            
-                            BoxLayout:
-                                orientation: 'vertical'
-                                padding: 15
-                                spacing: 8
-                                
-                                Label:
-                                    id: param4_value
-                                    text: "-"
-                                    font_size: '28sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.6, 1, 1
-                                
-                                Label:
-                                    id: param4_status
-                                    text: "-"
-                                    font_size: '12sp'
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.5, 0.5, 0.5, 1
+                        Label:
+                            id: table1_row1_col1
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
                         
-                        # Card 5: Additional Param 1
-                        BoxLayout:
-                            orientation: 'vertical'
-                            spacing: 0
-                            canvas.before:
-                                Color:
-                                    rgba: 1, 1, 1, 1
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [12]
-                            
-                            BoxLayout:
-                                size_hint_y: None
-                                height: 45
-                                padding: 15
-                                canvas.before:
-                                    Color:
-                                        rgba: 0.2, 0.6, 1, 0.2
-                                    RoundedRectangle:
-                                        pos: self.pos
-                                        size: self.size
-                                        radius: [12, 12, 0, 0]
-                                
-                                Label:
-                                    id: param5_name
-                                    text: "-"
-                                    font_size: '15sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.2, 0.2, 1
-                            
-                            BoxLayout:
-                                orientation: 'vertical'
-                                padding: 15
-                                spacing: 8
-                                
-                                Label:
-                                    id: param5_value
-                                    text: "-"
-                                    font_size: '28sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.6, 1, 1
-                                
-                                Label:
-                                    id: param5_status
-                                    text: "-"
-                                    font_size: '12sp'
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.5, 0.5, 0.5, 1
+                        Label:
+                            id: table1_row1_col2
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
                         
-                        # Card 6: Additional Param 2
-                        BoxLayout:
-                            orientation: 'vertical'
-                            spacing: 0
-                            canvas.before:
-                                Color:
-                                    rgba: 1, 1, 1, 1
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [12]
-                            
-                            BoxLayout:
-                                size_hint_y: None
-                                height: 45
-                                padding: 15
-                                canvas.before:
-                                    Color:
-                                        rgba: 0.2, 0.6, 1, 0.2
-                                    RoundedRectangle:
-                                        pos: self.pos
-                                        size: self.size
-                                        radius: [12, 12, 0, 0]
-                                
-                                Label:
-                                    id: param6_name
-                                    text: "-"
-                                    font_size: '15sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.2, 0.2, 1
-                            
-                            BoxLayout:
-                                orientation: 'vertical'
-                                padding: 15
-                                spacing: 8
-                                
-                                Label:
-                                    id: param6_value
-                                    text: "-"
-                                    font_size: '28sp'
-                                    bold: True
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.2, 0.6, 1, 1
-                                
-                                Label:
-                                    id: param6_status
-                                    text: "-"
-                                    font_size: '12sp'
-                                    halign: 'center'
-                                    valign: 'middle'
-                                    color: 0.5, 0.5, 0.5, 1
+                        Label:
+                            id: table1_row1_col3
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
+                    
+                    # Row 2
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: 35
+                        spacing: 5
+                        canvas.before:
+                            Color:
+                                rgba: 0.95, 0.95, 0.95, 1
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [6]
+                        
+                        Label:
+                            id: table1_row2_col1
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
+                        
+                        Label:
+                            id: table1_row2_col2
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
+                        
+                        Label:
+                            id: table1_row2_col3
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
+                    
+                    # Divider
+                    Widget:
+                        size_hint_y: None
+                        height: 20
+                        canvas.before:
+                            Color:
+                                rgba: 0.85, 0.85, 0.85, 1
+                            Rectangle:
+                                pos: self.x, self.center_y
+                                size: self.width, 1
+                    
+                    # Row 3
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: 35
+                        spacing: 5
+                        canvas.before:
+                            Color:
+                                rgba: 0.98, 0.98, 0.98, 1
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [6]
+                        
+                        Label:
+                            id: table2_row1_col1
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
+                        
+                        Label:
+                            id: table2_row1_col2
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
+                        
+                        Label:
+                            id: table2_row1_col3
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
+                    
+                    # Row 4
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: 35
+                        spacing: 5
+                        canvas.before:
+                            Color:
+                                rgba: 0.95, 0.95, 0.95, 1
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [6]
+                        
+                        Label:
+                            id: table2_row2_col1
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
+                        
+                        Label:
+                            id: table2_row2_col2
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
+                        
+                        Label:
+                            id: table2_row2_col3
+                            text: "-"
+                            font_size: '13sp'
+                            halign: 'center'
+                            valign: 'middle'
+                            color: 0.3, 0.3, 0.3, 1
                 
                 # Graph Section
                 BoxLayout:
