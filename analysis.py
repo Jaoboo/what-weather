@@ -27,7 +27,6 @@ def get_lat_lon_from_name(place_name):
         print(f"Error geocoding: {e}")
         return None, None, None
 
-
 def get_nasa_data(location_name):
     """Fetch NASA POWER data"""
     lat, lon, _ = get_lat_lon_from_name(location_name)
@@ -36,7 +35,7 @@ def get_nasa_data(location_name):
     
     base_url = "https://power.larc.nasa.gov/api/temporal/daily/point"
     params = {
-        "start": "19810101",
+        "start": "20150101",
         "end": "20250922",
         "latitude": lat,
         "longitude": lon,
@@ -59,6 +58,28 @@ def get_nasa_data(location_name):
 
 def fetch_open_meteo_historical(latitude, longitude, start_date, end_date):
     """Fetch historical weather data from Open-Meteo (Free, no API key needed)"""
+    from datetime import datetime, date
+    
+    # Ensure end_date is not in the future (Open-Meteo Archive API limitation)
+    today = date.today()
+    if isinstance(end_date, datetime):
+        end_date = end_date.date()
+    if isinstance(start_date, datetime):
+        start_date = start_date.date()
+    
+    # The Archive API typically has data up to yesterday
+    max_available_date = today - pd.Timedelta(days=1)
+    
+    # Adjust end_date if it's in the future or today
+    if end_date > max_available_date:
+        print(f"   Adjusting end_date from {end_date} to {max_available_date} (Archive API limit)")
+        end_date = max_available_date
+    
+    # Ensure start_date is not after end_date
+    if start_date > end_date:
+        print(f"   Warning: start_date {start_date} is after adjusted end_date {end_date}")
+        return None
+    
     start_str = start_date.strftime("%Y-%m-%d")
     end_str = end_date.strftime("%Y-%m-%d")
     
@@ -75,6 +96,20 @@ def fetch_open_meteo_historical(latitude, longitude, start_date, end_date):
     try:
         print(f"   Fetching Open-Meteo historical data ({start_str} to {end_str})...")
         response = requests.get(base_url, params=params, timeout=30.0)
+        
+        # Better error handling
+        if response.status_code != 200:
+            print(f"   Open-Meteo API returned status code: {response.status_code}")
+            print(f"   Response: {response.text}")
+            
+            # Try with a shorter date range if the request fails
+            if response.status_code == 400 and (end_date - start_date).days > 365:
+                print(f"   Retrying with last year of data only...")
+                new_start = end_date - pd.Timedelta(days=365)
+                return fetch_open_meteo_historical(latitude, longitude, new_start, end_date)
+            
+            return None
+            
         response.raise_for_status()
         data = response.json()
         
@@ -89,59 +124,11 @@ def fetch_open_meteo_historical(latitude, longitude, start_date, end_date):
             print(f"   Open-Meteo data: {len(df)} days")
             return df
         else:
+            print(f"   No 'daily' data in Open-Meteo response")
             return None
     except Exception as e:
         print(f"   Error fetching Open-Meteo data: {e}")
         return None
-
-
-def fetch_visual_crossing_data(latitude, longitude, start_date, end_date):
-    """Fetch historical weather data from Visual Crossing (Free tier)"""
-    API_KEY = "YOUR_API_KEY_HERE"
-    
-    if API_KEY == "YOUR_API_KEY_HERE":
-        print("   Visual Crossing API key not configured, skipping...")
-        return None
-    
-    start_str = start_date.strftime("%Y-%m-%d")
-    end_str = end_date.strftime("%Y-%m-%d")
-    
-    base_url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
-    api_url = f"{base_url}/{latitude},{longitude}/{start_str}/{end_str}"
-    
-    params = {
-        "unitGroup": "metric",
-        "key": API_KEY,
-        "include": "days",
-        "elements": "datetime,temp,precip,windspeed"
-    }
-    
-    try:
-        print(f"   Fetching Visual Crossing data...")
-        response = requests.get(api_url, params=params, timeout=30.0)
-        response.raise_for_status()
-        data = response.json()
-        
-        if 'days' in data:
-            records = []
-            for day in data['days']:
-                records.append({
-                    'Date': pd.to_datetime(day['datetime']),
-                    'T2M_VC': day.get('temp'),
-                    'PRECTOTCORR_VC': day.get('precip', 0),
-                    'WS2M_VC': day.get('windspeed')
-                })
-            
-            df = pd.DataFrame(records)
-            df.set_index('Date', inplace=True)
-            print(f"   Visual Crossing data: {len(df)} days")
-            return df
-        else:
-            return None
-    except Exception as e:
-        print(f"   Error fetching Visual Crossing data: {e}")
-        return None
-
 
 def fetch_wind_data(start_date_str, end_date_str, lat, lon):
     """Fetch wind data (WS2M) from NASA POWER"""
@@ -169,6 +156,7 @@ def fetch_wind_data(start_date_str, end_date_str, lat, lon):
             print(f"   Wind data: {len(df)} days")
             return df
         else:
+            print(f"   No wind data in response")
             return None
     except Exception as e:
         print(f"   Error fetching wind data: {e}")
@@ -210,69 +198,60 @@ def fetch_pm25_data(latitude, longitude, start_date_dt, end_date_dt):
         print(f"   Error fetching PM2.5 data: {e}")
         return None
 
-
-def fetch_optional_params(lat, lon, selected_params):
-    """Fetch data for optional parameters selected by user"""
+def fetch_optional_params_openmeteo(lat, lon, selected_params):
+    """Fetch optional parameters from Open-Meteo"""
     results = {}
     
-    # Map UI parameter names to API parameter names
+    # Mapping parameter names to Open-Meteo API names
     param_mapping = {
-        'RH2M': 'RH2M',  # Relative Humidity
-        'SNOWFALL': 'SNOWFALL',  # Snowfall
-        'SNOW_DEPTH': 'SNOW_DEPTH',  # Snow Depth
-        'WAVE_HEIGHT': 'WAVE_HEIGHT',  # Wave Height (if available)
-        'OCEAN_CURRENT': 'OCEAN_CURRENT',  # Ocean Current (if available)
-        'SWELL_PERIOD': 'SWELL_PERIOD'  # Swell Period (if available)
+        'RH2M': 'relativehumidity_2m',  # RH at 2m
+        'SNOWFALL': 'snowfall',         # Snowfall
+        'SNOW_DEPTH': 'snow_depth',     # Snow Depth
     }
+
+    # Prepare parameters to fetch
+    om_params = [param_mapping[p] for p in selected_params if p in param_mapping]
     
-    # Fetch from NASA POWER for available parameters
-    nasa_params = []
-    for param in selected_params:
-        if param in ['RH2M', 'SNOWFALL', 'SNOW_DEPTH']:
-            nasa_params.append(param_mapping[param])
-    
-    if nasa_params:
-        base_url = "https://power.larc.nasa.gov/api/temporal/daily/point"
-        params_str = ','.join(nasa_params)
+    if om_params:
+        base_url = "https://archive-api.open-meteo.com/v1/archive"
         params = {
-            "start": "19810101",
-            "end": "20250922",
             "latitude": lat,
             "longitude": lon,
-            "parameters": params_str,
-            "community": "ag",
-            "format": "JSON"
+            "daily": ",".join(om_params),
+            "start_date": "2015-01-01",
+            "end_date": "2025-09-22",
+            "timezone": "auto"
         }
         
         try:
-            print(f"   Fetching optional parameters: {nasa_params}")
+            print(f"Fetching Open-Meteo data: {om_params}")
             response = requests.get(base_url, params=params, timeout=30.0)
             response.raise_for_status()
             data = response.json()
             
-            if "properties" in data and "parameter" in data["properties"]:
-                for param_name, values in data["properties"]["parameter"].items():
-                    df = pd.DataFrame.from_dict(values, orient='index', columns=[param_name])
-                    df.index = pd.to_datetime(df.index, format='%Y%m%d')
-                    df.index.name = "Date"
-                    results[param_name] = df
-                    print(f"   {param_name} data: {len(df)} days")
+            if "daily" in data:
+                for api_name, df_name in param_mapping.items():
+                    if df_name in data["daily"]:
+                        df = pd.DataFrame({
+                            df_name: data["daily"][df_name],
+                            "Date": pd.to_datetime(data["daily"]["time"])
+                        }).set_index("Date")
+                        results[api_name] = df
+                        print(f"  {api_name} data: {len(df)} days")
         except Exception as e:
-            print(f"   Error fetching NASA optional params: {e}")
+            print(f"Error fetching Open-Meteo data: {e}")
     
-    # For ocean-related parameters, generate synthetic data (as these aren't available from NASA POWER)
+    # Ocean-related parameters (synthetic data)
     for param in selected_params:
         if param in ['WAVE_HEIGHT', 'OCEAN_CURRENT', 'SWELL_PERIOD']:
-            print(f"   Note: {param} data not available from API, using synthetic data")
-            # Generate reasonable synthetic data based on typical ranges
-            dates = pd.date_range(start='1981-01-01', end='2025-09-22', freq='D')
+            print(f"Note: {param} data not available from Open-Meteo, generating synthetic data")
+            dates = pd.date_range(start='2015-01-01', end='2025-09-22', freq='D')
             if param == 'WAVE_HEIGHT':
-                values = np.random.uniform(0.5, 3.0, len(dates))  # 0.5-3m typical wave height
+                values = np.random.uniform(0.5, 3.0, len(dates))
             elif param == 'OCEAN_CURRENT':
-                values = np.random.uniform(0.1, 1.5, len(dates))  # 0.1-1.5 m/s current
+                values = np.random.uniform(0.1, 1.5, len(dates))
             elif param == 'SWELL_PERIOD':
-                values = np.random.uniform(4, 12, len(dates))  # 4-12 seconds swell period
-            
+                values = np.random.uniform(4, 12, len(dates))
             df = pd.DataFrame(values, index=dates, columns=[param])
             df.index.name = "Date"
             results[param] = df
@@ -544,7 +523,7 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
     df = nasa_json_to_dataframe(data)
     
     print("Fetching wind data...")
-    wind_df = fetch_wind_data("19810101", "20250922", lat, lon)
+    wind_df = fetch_wind_data("20150101", "20250922", lat, lon)
     
     if wind_df is not None:
         df = df.join(wind_df, how='left')
@@ -552,7 +531,7 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
     # Fetch optional parameters ถ้ามีการเลือก
     if selected_params:
         print("Fetching optional parameters...")
-        optional_data = fetch_optional_params(lat, lon, selected_params)
+        optional_data = fetch_optional_params_openmeteo(lat, lon, selected_params)
         for param_name, param_df in optional_data.items():
             df = df.join(param_df, how='left')
     
@@ -578,16 +557,8 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
                     
                     print(f"   Ensemble {base_param}: {len(common_dates)} days")
     
-    vc_df = fetch_visual_crossing_data(lat, lon, date(2020, 1, 1), date.today())
-    
-    if vc_df is not None:
-        for col in vc_df.columns:
-            base_param = col.replace('_VC', '')
-            if base_param in df.columns:
-                mask = vc_df.index.isin(df.index)
-                df.loc[vc_df[mask].index, base_param] = vc_df.loc[mask, col]
-    
-    pm25_df = fetch_pm25_data(lat, lon, date(2013, 1, 1), date.today())
+    pm25_end = date(2025, 9, 22)  # ใช้วันเดียวกับ NASA
+    pm25_df = fetch_pm25_data(lat, lon, date(2013, 1, 1), pm25_end)
     
     if pm25_df is not None:
         df = df.join(pm25_df, how='left')
@@ -625,7 +596,15 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
             {'name': 'Hazardous', 'threshold': 150, 'condition': 'above'},
             {'name': 'Unhealthy', 'threshold': 100, 'condition': 'above'},
             {'name': 'Moderate', 'threshold': 50, 'condition': 'above'}
-        ]
+        ],
+        'SNOWFALL': [
+            {'name': 'Heavy Snowfall', 'threshold': 10, 'condition': 'above'},
+            {'name': 'Moderate Snowfall', 'threshold': 5, 'condition': 'above'}
+        ],
+        'SNOW_DEPTH': [
+            {'name': 'Deep Snow', 'threshold': 20, 'condition': 'above'},
+            {'name': 'Moderate Snow Depth', 'threshold': 10, 'condition': 'above'}
+        ],
     }
     
     probabilities = {}
@@ -720,6 +699,98 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
         else:
             recommendations.append("Rough seas - Avoid swimming, high surf advisory")
     
+    # สร้าง Activity Recommendations
+    activities = []
+    warnings = []
+    
+    # ดึงค่าจาก predictions
+    temp = results.get('T2M', {}).get('prediction', None)
+    rain = results.get('PRECTOTCORR', {}).get('prediction', None)
+    wind = results.get('WS2M', {}).get('prediction', None)
+    pm25 = results.get('PM25', {}).get('prediction', None)
+    humidity = results.get('RH2M', {}).get('prediction', None)
+    snowfall = results.get('SNOWFALL', {}).get('prediction', None)
+    snow_depth = results.get('SNOW_DEPTH', {}).get('prediction', None)
+    wave_height = results.get('WAVE_HEIGHT', {}).get('prediction', None)
+    ocean_current = results.get('OCEAN_CURRENT', {}).get('prediction', None)
+    swell_period = results.get('SWELL_PERIOD', {}).get('prediction', None)
+    
+    # เช็คคำเตือน
+    if temp is not None:
+        if temp > 35:
+            warnings.append("WARNING: Extreme heat - Stay indoors during peak hours")
+        elif temp < 5:
+            warnings.append("WARNING: Extreme cold - Risk of hypothermia")
+    
+    if rain is not None and rain > 15:
+        warnings.append("WARNING: Heavy rain - Indoor activities recommended")
+    
+    if wind is not None and wind > 12:
+        warnings.append("WARNING: Strong winds - Dangerous for outdoor activities")
+    
+    if pm25 is not None and pm25 > 100:
+        warnings.append("WARNING: Poor air quality - Wear mask, stay indoors")
+    
+    if humidity is not None and humidity > 80 and temp is not None and temp > 30:
+        warnings.append("WARNING: High heat index - Risk of heat stroke")
+    
+    if wave_height is not None and wave_height > 2.5:
+        warnings.append("WARNING: High waves - Swimming dangerous")
+    
+    if ocean_current is not None and ocean_current > 1.5:
+        warnings.append("WARNING: Strong currents - Do not enter water")
+    
+    # ถ้ามีคำเตือน
+    if warnings:
+        activities.extend(warnings)
+        activities.append("")
+        activities.append("Safe alternatives: Indoor gym, malls, museums")
+    else:
+        # กิจกรรมหิมะ
+        if (snowfall is not None and snowfall > 0) or (snow_depth is not None and snow_depth > 5):
+            if temp is not None and temp <= 5:
+                activities.append("WINTER ACTIVITIES:")
+                if snow_depth and snow_depth < 10:
+                    activities.append("Building snowmen, winter walks")
+                elif snow_depth and snow_depth < 30:
+                    activities.append("Skiing, snowboarding")
+                else:
+                    activities.append("Advanced skiing, backcountry")
+                activities.append("")
+        
+        # กิจกรรมทะเล
+        if temp and temp > 20 and wave_height is not None and ocean_current is not None:
+            if wave_height < 0.8 and ocean_current < 0.5:
+                activities.append("WATER ACTIVITIES:")
+                activities.append("Swimming, snorkeling")
+                activities.append("Kayaking, paddleboarding")
+                activities.append("")
+            elif wave_height < 1.5 and ocean_current < 1.0:
+                activities.append("WATER SPORTS:")
+                activities.append("Surfing, bodyboarding")
+                if swell_period and swell_period > 8:
+                    activities.append("Long period swell - Great for surfing")
+                activities.append("")
+        
+        # กิจกรรม outdoor
+        if temp and 15 < temp < 30 and (rain is None or rain < 5):
+            activities.append("OUTDOOR ACTIVITIES:")
+            activities.append("Cycling, jogging, hiking")
+            activities.append("Picnics, photography")
+            if pm25 and pm25 < 50:
+                activities.append("Good air quality for sports")
+            activities.append("")
+        
+        # ถ้าไม่มีกิจกรรมเฉพาะ
+        if not activities:
+            if temp and temp > 30:
+                activities.append("Hot weather - Morning/evening activities recommended")
+            elif temp and temp < 15:
+                activities.append("Cool weather - Dress warmly for outdoor activities")
+            else:
+                activities.append("Weather suitable for most outdoor activities")
+    
+    # Format location
     location_parts = [part.strip() for part in full_name.split(',')]
     if len(location_parts) >= 2:
         city = location_parts[0]
@@ -728,22 +799,27 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
     else:
         formatted_location = full_name
     
+    # Generate range data for graph
     range_data = {}
-    
     print("\n=== Generating range_data for graph ===")
     
-    # สร้าง range_data สำหรับทุก parameter ที่มี (รวม optional)
-    all_params = ['T2M', 'PRECTOTCORR', 'WS2M', 'PM25'] + selected_params
-    for param in all_params:
+    for param in ['T2M', 'PRECTOTCORR', 'WS2M', 'PM25', 'SNOWFALL', 'SNOW_DEPTH']:
         if param in df.columns:
             range_data[param] = get_range_values(df, param, target_date, days_range=3)
+            valid_count = sum(1 for v in range_data[param].values() if v is not None)
+            print(f"{param}: {len(range_data[param])} dates, {valid_count} valid values")
+            if valid_count > 0:
+                sample_items = list(range_data[param].items())[:3]
+                print(f"  Sample data: {sample_items}")
     
+    # Return ทุกอย่างพร้อมกัน
     return {
         'location': formatted_location,
         'date': target_date,
         'predictions': results,
         'probabilities': probabilities,
         'recommendations': recommendations,
+        'activity_recommendations': activities,
         'range_data': range_data,
         'selected_params': selected_params
     }
