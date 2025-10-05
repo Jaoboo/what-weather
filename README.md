@@ -15,7 +15,7 @@ Developed for the **NASA Space Apps Challenge 2025**.
 ---
 
 ## Usage
-1. Enter location (City, Country in English)
+1. Enter location (City 0r City, Country -- in English)
 2. Select date (DD/MM/YYYY)
 3. Choose up to 2 optional parameters
 4. Click "Prediction" and view results (map, graph, summary)
