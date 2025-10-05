@@ -1,5 +1,6 @@
 #:kivy 2.0
 
+# WeatherCard: Displays summary weather information
 <WeatherCard>:
     orientation: 'vertical'
     padding: 20
@@ -45,6 +46,7 @@
         valign: 'middle'
         color: 0.5, 0.5, 0.5, 1
 
+# WeatherParamCard: Card showing individual parameters
 <WeatherParamCard@BoxLayout>:
     param_title: param_title
     param_value: param_value
@@ -100,7 +102,8 @@
         halign: 'center'
         valign: 'middle'
         color: 0.4, 0.4, 0.4, 1
-        
+
+# FormContentFrame: Form frame for user to input Location and Date   
 <FormContentFrame>:
     orientation: 'vertical'
     padding: [30, 20, 30, 20]
@@ -210,7 +213,8 @@
                 Line:
                     rounded_rectangle: self.x, self.y, self.width, self.height, 12
                     width: 2 if self.focus else 1
-    
+
+    # Optional Parameters Section: Select up to 2 additional parameters
     BoxLayout:
         orientation: 'vertical'
         spacing: 8
@@ -366,7 +370,8 @@
                         size: self.texture_size
     
     Widget:
-    
+
+    # Prediction Button: Button to start the prediction
     AnchorLayout:
         anchor_x: 'right'
         anchor_y: 'bottom'
@@ -399,6 +404,7 @@
     FormContentFrame:
         id: form_content
 
+# DescriptionScreen
 <DescriptionScreen>:
     canvas.before:
         Color:
@@ -466,6 +472,7 @@
         Widget:
             size_hint_y: 0.15
 
+# MainScreen
 <MainFormScreen>:
     canvas.before:
         Color:
@@ -509,6 +516,7 @@
             Widget:
                 size_hint_x: 0.15
 
+# LoadingScreen
 <LoadingScreen>:
     canvas.before:
         Color:
@@ -565,6 +573,7 @@
         BoxLayout:
             size_hint_y: 0.35
 
+# ResultScreen: Prediction result screen
 <ResultScreen>:
     canvas.before:
         Color:

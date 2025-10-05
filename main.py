@@ -1,5 +1,5 @@
 from kivy.config import Config
-
+# Set the screen size
 Config.set('graphics', 'fullscreen', '0')
 Config.set('graphics', 'resizable', '0')
 Config.set('graphics', 'width', '800')
@@ -15,14 +15,12 @@ from kivy.uix.button import Button
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
-from kivy.uix.image import AsyncImage
-from kivy.uix.scrollview import ScrollView
 from kivy.lang import Builder
-from kivy.graphics import Color, Rectangle, RoundedRectangle, Line
+from kivy.graphics import Color, RoundedRectangle, Line
+from kivy.properties import ObjectProperty
 from kivy.properties import ListProperty, StringProperty
 from kivy.clock import Clock
 from kivy_garden.mapview import MapView, MapMarkerPopup
-import re
 import csv
 from datetime import datetime
 import os
@@ -61,6 +59,11 @@ class WeatherCard(BoxLayout):
     subtitle_text = StringProperty("")
     value_color = ListProperty([0.2, 0.2, 0.2, 1])
     bg_color = ListProperty([1, 1, 1, 0.95])
+
+    param_title = ObjectProperty(None)
+    param_value = ObjectProperty(None)
+    param_unit = ObjectProperty(None)
+    param_status = ObjectProperty(None)
 
 class MainFormScreen(Screen):
     def __init__(self, **kwargs):
@@ -193,7 +196,7 @@ class MainFormScreen(Screen):
             print(f"Date: {formatted_date}")
             print(f"Selected additional params: {self.selected_params}")
             
-            # ส่ง selected_params ไปยัง run_analysis
+            # send selected_params to run_analysis
             results = run_analysis(location_name, formatted_date, selected_params=self.selected_params)
             
             if 'error' in results:
@@ -213,7 +216,7 @@ class MainFormScreen(Screen):
             print(f"Analysis error: {e}")
             import traceback
             traceback.print_exc()
-            error_msg = f"Analysis failed:\n{str(e)}"  # ✅ เก็บค่าไว้ก่อน
+            error_msg = f"Analysis failed:\n{str(e)}" 
             Clock.schedule_once(lambda dt: self.show_warning(error_msg), 0)
             Clock.schedule_once(lambda dt: setattr(self.manager, 'current', 'main'), 0)
 
@@ -238,7 +241,7 @@ class ResultScreen(Screen):
         self.ids.location_value.text = self.current_location
         self.ids.date_value.text = self.current_date
 
-        # ล้าง widgets ตั้งแต่ต้น
+        # clear widgets
         self.ids.summary_box.clear_widgets()
         self.ids.activity_box.clear_widgets()
         self.ids.graph_box.clear_widgets()
@@ -316,8 +319,8 @@ class ResultScreen(Screen):
                 'WS2M': '#45B7D1',
                 'PM25': '#FFA07A',
                 'RH2M': '#98D8C8',
-                'SNOWFALL': '#A8E6CF',
-                'SNOW_DEPTH': '#FFD3B6',
+                'Snowfall_Sum': '#A8E6CF',   
+                'Snow_Depth_Max': '#FFD3B6',
                 'WAVE_HEIGHT': '#8E94F2',
                 'OCEAN_CURRENT': '#FDA7DF',
                 'SWELL_PERIOD': '#C7CEEA'
@@ -329,8 +332,8 @@ class ResultScreen(Screen):
                 'WS2M': 'Wind Speed (m/s)',
                 'PM25': 'PM2.5 (μg/m³)',
                 'RH2M': 'Humidity (%)',
-                'SNOWFALL': 'Snowfall (mm)',
-                'SNOW_DEPTH': 'Snow Depth (cm)',
+                'Snowfall_Sum': 'Snowfall (cm/day)',  
+                'Snow_Depth_Max': 'Snow Depth (cm)',
                 'WAVE_HEIGHT': 'Wave Height (m)',
                 'OCEAN_CURRENT': 'Ocean Current (m/s)',
                 'SWELL_PERIOD': 'Swell Period (s)'
@@ -368,12 +371,12 @@ class ResultScreen(Screen):
             plt.yticks(fontsize=9)
             plt.tight_layout()
 
-            # บันทึกกราฟเป็นไฟล์ชั่วคราว สำหรับใส่ใน PDF
+            # Save the graph as a temporary file for embedding in a PDF
             downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
             self.temp_graph_path = os.path.join(downloads_path, 'temp_weather_graph.png')
             plt.savefig(self.temp_graph_path, format='png', dpi=150, bbox_inches='tight', facecolor='white')
 
-            # บันทึกกราฟเป็น image สำหรับแสดงใน Kivy
+            # Save the graph as an image to display in Kivy
             buf = BytesIO()
             plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
             buf.seek(0)
@@ -398,35 +401,48 @@ class ResultScreen(Screen):
         """Update weather parameter cards - แสดง 4-6 การ์ดตามที่ user เลือก"""
         default_params = ['T2M', 'PRECTOTCORR', 'WS2M', 'PM25']
 
-        # รวม default + selected params
-        all_params = default_params + self.selected_params
+        # Convert selected_params to match the names in predictions
+        param_mapping = {
+            'RH2M': 'RH2M',
+            'SNOWFALL': 'Snowfall_Sum',
+            'SNOW_DEPTH': 'Snow_Depth_Max',
+            'WAVE_HEIGHT': 'WAVE_HEIGHT',
+            'OCEAN_CURRENT': 'OCEAN_CURRENT',
+            'SWELL_PERIOD': 'SWELL_PERIOD'
+        }
+        
+        # แปลง selected_params เป็นชื่อจริงที่อยู่ใน predictions
+        mapped_params = [param_mapping.get(p, p) for p in self.selected_params]
+        
+        # รวม default + mapped params
+        all_params = default_params + mapped_params
 
-        # กำหนดสีพื้นหลัง (โปร่งแสง)
+        # Set a semi-transparent background color
         param_bg_colors = {
             'T2M': [1.0, 0.42, 0.42, 0.15],
             'PRECTOTCORR': [0.31, 0.80, 0.77, 0.15],
             'WS2M': [0.27, 0.72, 0.82, 0.15],
             'PM25': [1.0, 0.63, 0.48, 0.15],
             'RH2M': [0.60, 0.85, 0.78, 0.15],
-            'SNOWFALL': [0.66, 0.90, 0.81, 0.15],
-            'SNOW_DEPTH': [1.0, 0.83, 0.71, 0.15],
+            'Snowfall_Sum': [0.66, 0.90, 0.81, 0.15],     
+            'Snow_Depth_Max': [1.0, 0.83, 0.71, 0.15],     
             'WAVE_HEIGHT': [0.56, 0.58, 0.95, 0.15],
             'OCEAN_CURRENT': [0.99, 0.65, 0.87, 0.15],
             'SWELL_PERIOD': [0.78, 0.81, 0.92, 0.15],
         }
 
-        # กำหนดสีตัวอักษร (เข้มกว่าพื้นหลัง)
+        # Set the text color (darker than the background)
         param_text_colors = {
-            'T2M': [0.8, 0.2, 0.2, 1],           # แดงเข้ม
-            'PRECTOTCORR': [0.15, 0.55, 0.52, 1], # เขียวน้ำทะเลเข้ม
-            'WS2M': [0.15, 0.45, 0.58, 1],        # ฟ้าเข้ม
-            'PM25': [0.8, 0.35, 0.2, 1],          # ส้มเข้ม
-            'RH2M': [0.3, 0.6, 0.5, 1],           # เขียวอ่อนเข้ม
-            'SNOWFALL': [0.4, 0.65, 0.55, 1],     # เขียวพาสเทลเข้ม
-            'SNOW_DEPTH': [0.8, 0.5, 0.35, 1],    # ส้มอ่อนเข้ม
-            'WAVE_HEIGHT': [0.35, 0.35, 0.7, 1],  # ม่วงน้ำเงินเข้ม
-            'OCEAN_CURRENT': [0.75, 0.3, 0.55, 1], # ชมพูเข้ม
-            'SWELL_PERIOD': [0.5, 0.55, 0.7, 1],  # ม่วงอ่อนเข้ม
+            'T2M': [0.8, 0.2, 0.2, 1],
+            'PRECTOTCORR': [0.15, 0.55, 0.52, 1],
+            'WS2M': [0.15, 0.45, 0.58, 1],
+            'PM25': [0.8, 0.35, 0.2, 1],
+            'RH2M': [0.3, 0.6, 0.5, 1],
+            'Snowfall_Sum': [0.4, 0.65, 0.55, 1],         
+            'Snow_Depth_Max': [0.8, 0.5, 0.35, 1],         
+            'WAVE_HEIGHT': [0.35, 0.35, 0.7, 1],
+            'OCEAN_CURRENT': [0.75, 0.3, 0.55, 1],
+            'SWELL_PERIOD': [0.5, 0.55, 0.7, 1],
         }
 
         param_info = {
@@ -435,14 +451,14 @@ class ResultScreen(Screen):
             'WS2M': {'title': 'Wind Speed', 'unit': 'm/s', 'getter': self.get_wind_status},
             'PM25': {'title': 'PM2.5', 'unit': 'μg/m³', 'getter': self.get_pm_status},
             'RH2M': {'title': 'Humidity', 'unit': '%', 'getter': self.get_humidity_status},
-            'SNOWFALL': {'title': 'Snowfall', 'unit': 'mm', 'getter': self.get_snow_status},
-            'SNOW_DEPTH': {'title': 'Snow Depth', 'unit': 'cm', 'getter': self.get_snow_status},
+            'Snowfall_Sum': {'title': 'Snowfall', 'unit': 'cm/day', 'getter': self.get_snow_status},     
+            'Snow_Depth_Max': {'title': 'Snow Depth', 'unit': 'cm', 'getter': self.get_snow_status}, 
             'WAVE_HEIGHT': {'title': 'Wave Height', 'unit': 'm', 'getter': self.get_wave_status},
             'OCEAN_CURRENT': {'title': 'Ocean Current', 'unit': 'm/s', 'getter': self.get_current_status},
             'SWELL_PERIOD': {'title': 'Swell Period', 'unit': 's', 'getter': self.get_swell_status},
         }
 
-        # ปรับ grid layout ตามจำนวน parameters
+        # Adjust the grid layout according to the number of parameters
         card_grid = self.ids.card_grid
         total_cards = len(all_params)
 
@@ -456,20 +472,20 @@ class ResultScreen(Screen):
             card_grid.cols = 2
             card_grid.rows = 2
 
-        # ซ่อนการ์ดทั้งหมดก่อน
+        # Hide all cards first
         for i in range(1, 7):
             card = self.ids[f'card{i}']
             card.opacity = 0
             card.size_hint = (None, None)
             card.size = (0, 0)
 
-        # แสดงและใส่ข้อมูลเฉพาะการ์ดที่ต้องการ
+        # Show and input data only for the specific card you want
         for i, param in enumerate(all_params):
-            if i < 6:  # สูงสุด 6 การ์ด
+            if i < 6:  # max 6 cards
                 card_id = f'card{i+1}'
                 card = self.ids[card_id]
         
-                # แสดงการ์ด
+                # Show card
                 card.opacity = 1
                 card.size_hint = (1, 1)
         
@@ -477,7 +493,7 @@ class ResultScreen(Screen):
                     info = param_info[param]
                     value = predictions[param]['prediction']
 
-                    # เปลี่ยนสีพื้นหลังการ์ด
+                    # change card_bg color
                     if param in param_bg_colors:
                         card.canvas.before.clear()
                         with card.canvas.before:
@@ -488,13 +504,13 @@ class ResultScreen(Screen):
                         card.bind(size=lambda obj, size, c=card, clr=param_bg_colors[param]: 
                                   self._update_card_bg(c, clr))
 
-                    # เปลี่ยนสีตัวอักษร
+                    # change text color
                     text_color = param_text_colors.get(param, [0.2, 0.2, 0.2, 1])
                     card.param_title.color = text_color
                     card.param_value.color = text_color
-                    card.param_status.color = [text_color[0]*0.8, text_color[1]*0.8, text_color[2]*0.8, 1]  # เข้มกว่าอีกนิด
+                    card.param_status.color = [text_color[0]*0.8, text_color[1]*0.8, text_color[2]*0.8, 1]
 
-                    # ใส่ข้อมูล
+                    # input data
                     card.param_title.text = info['title']
                     card.param_value.text = f"{value:.1f} {info['unit']}"
                     card.param_unit.text = ""
@@ -628,7 +644,7 @@ class ResultScreen(Screen):
             print(f"Error initializing map: {e}")
     
     def toggle_download_menu(self):
-        """แสดง/ซ่อน dropdown menu"""
+        # show/hide dropdown menu
         if self.download_menu:
             self.download_menu.dismiss()
             self.download_menu = None
@@ -688,7 +704,7 @@ class ResultScreen(Screen):
         content.bind(pos=lambda obj, pos: setattr(shadow, 'pos', (pos[0] + 2, pos[1] - 2)))
         content.bind(size=lambda obj, size: setattr(shadow, 'size', size))
     
-        # สร้าง popup โดยไม่ระบุ pos_hint
+        # create popup without pos_hiny
         self.download_menu = Popup(
             content=content,
             size_hint=(None, None),
@@ -700,14 +716,12 @@ class ResultScreen(Screen):
             attach_to=None
         )
     
-        # คำนวณตำแหน่งทันทีหลังสร้าง
+        # Calculation
         def set_position(dt):
             if self.download_menu:
-                # ตำแหน่งปุ่ม Download
                 btn_x = Window.width - 170  # 140 (width) + 30 (margin)
-                btn_y = Window.height - 70 - 45  # จากบน: 70 (header) + 45 (button height)
-            
-                # วาง dropdown ใต้ปุ่ม
+                btn_y = Window.height - 70 - 45  # 70 (header) + 45 (button height)
+
                 menu_x = btn_x
                 menu_y = btn_y - 138  # 135 (menu) + 3 (gap)
             
@@ -731,7 +745,7 @@ class ResultScreen(Screen):
         self.download_menu.open()
 
     def _update_btn_graphics(self, btn, *args):
-        """อัพเดทกราฟิกของปุ่ม"""
+        # update a graphic of button
         if hasattr(btn, 'bg_rect'):
             btn.bg_rect.pos = btn.pos
             btn.bg_rect.size = btn.size
@@ -739,7 +753,7 @@ class ResultScreen(Screen):
             btn.border_line.rounded_rectangle = (btn.x, btn.y, btn.width, btn.height) + tuple(btn.radius_values)
 
     def _on_mouse_move(self, btn, pos):
-        """เปลี่ยนสีเมื่อเมาส์ผ่าน"""
+        # change color when the mouse cursor hovers over it
         if not self.download_menu or not self.download_menu._window:
             return
     
@@ -759,28 +773,25 @@ class ResultScreen(Screen):
             btn.bold = False
 
     def _update_menu_position(self, *args):
-        """อัพเดทตำแหน่ง dropdown menu ให้ติดใต้ปุ่ม Download"""
+        # update dropdown menu position
         if not self.download_menu:
             return
     
         try:
             download_btn = self.ids.download_btn
-        
-            # คำนวณตำแหน่งให้ติดใต้ปุ่ม
             menu_x = download_btn.x
             menu_y = download_btn.y - 135
         
             self.download_menu.pos = (menu_x, menu_y)
         
         except AttributeError as e:
-        # ถ้าหาปุ่มไม่เจอ คำนวณจากขอบขวาบน
             menu_x = Window.width - 170
             menu_y = Window.height - 70 - 45 - 135
 
             self.download_menu.pos = (menu_x, menu_y)
 
     def download_file(self, file_type):
-        """ดาวน์โหลดไฟล์ตามประเภทที่เลือก"""
+        # Type of downloads
         if self.download_menu:
             self.download_menu.dismiss()
             self.download_menu = None
@@ -821,9 +832,9 @@ class ResultScreen(Screen):
                         'PRECTOTCORR': ('Rainfall', 'mm'),
                         'WS2M': ('Wind Speed', 'm/s'),
                         'PM25': ('PM2.5', 'μg/m³'),
-                        'RH2M': ('Humidity', '%'),
-                        'SNOWFALL': ('Snowfall', 'mm'),
-                        'SNOW_DEPTH': ('Snow Depth', 'cm'),
+                        'Humidity_Mean': ('Humidity', '%'),
+                        'Snowfall_Sum': ('Snowfall', 'mm'),
+                        'Snow_Depth_Max': ('Snow Depth', 'cm'),
                         'WAVE_HEIGHT': ('Wave Height', 'm'),
                         'OCEAN_CURRENT': ('Ocean Current', 'm/s'),
                         'SWELL_PERIOD': ('Swell Period', 's')
@@ -940,9 +951,9 @@ class ResultScreen(Screen):
                 'PRECTOTCORR': ('Rainfall', 'mm'),
                 'WS2M': ('Wind Speed', 'm/s'),
                 'PM25': ('PM2.5', 'μg/m³'),
-                'RH2M': ('Humidity', '%'),
-                'SNOWFALL': ('Snowfall', 'mm'),
-                'SNOW_DEPTH': ('Snow Depth', 'cm'),
+                'Humidity_Mean': ('Humidity', '%'),
+                'Snowfall_Sum': ('Snowfall', 'mm'),
+                'Snow_Depth_Max': ('Snow Depth', 'cm'),
                 'WAVE_HEIGHT': ('Wave Height', 'm'),
                 'OCEAN_CURRENT': ('Ocean Current', 'm/s'),
                 'SWELL_PERIOD': ('Swell Period', 's')
