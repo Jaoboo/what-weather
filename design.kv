@@ -542,7 +542,7 @@
                 size_hint_x: 0.3
             
             AsyncImage:
-                source: 'LOAD.gif'
+                source: 'loading.gif'
                 size_hint: None, None
                 size: 150, 150
                 pos_hint: {'center_x': 0.5, 'center_y': 0.5}
@@ -714,8 +714,8 @@
                             radius: [12]
                     
                     Label:
-                        text: "Location Map"
-                        font_size: '14sp'
+                        text: "Location"
+                        font_size: '20sp'
                         bold: True
                         size_hint_y: None
                         height: 25
@@ -739,66 +739,60 @@
                     size_hint_y: None
                     height: 320
                     spacing: 15
-                    
+
                     BoxLayout:
-                        size_hint_x: 0.5
-                        orientation: 'vertical'
-                        padding: [15, 15, 15, 15]
-                        spacing: 0
+                        orientation: 'horizontal'
+                        spacing: 15
+                        padding: [20, 20, 20, 20]
                         canvas.before:
                             Color:
-                                rgba: 0.95, 0.97, 1, 1
+                                rgba: 1, 1, 1, 1  # สีพื้นหลังกรอบใหญ่
                             RoundedRectangle:
                                 pos: self.pos
                                 size: self.size
-                                radius: [12]
-    
-                        Label:
-                            text: "Summary"
-                            font_size: '18sp'
-                            bold: True
-                            size_hint_y: None
-                            height: 30
-                            halign: 'left'
-                            valign: 'top'
-                            text_size: self.size
-                            color: 0.2, 0.2, 0.2, 1
-    
-                        BoxLayout:
-                            id: summary_box
-                            orientation: 'vertical'
-                            spacing: 5
-                            font_size: '16sp'
+                                radius: [15]
                     
-                    BoxLayout:
-                        size_hint_x: 0.5
-                        orientation: 'vertical'
-                        padding: [15, 15, 15, 15]
-                        spacing: 0
-                        canvas.before:
-                            Color:
-                                rgba: 1, 0.98, 0.95, 1
-                            RoundedRectangle:
-                                pos: self.pos
-                                size: self.size
-                                radius: [12]
-                        
-                        Label:
-                            text: "Activity Recommendations"
-                            font_size: '18sp'
-                            bold: True
-                            size_hint_y: None
-                            height: 30
-                            halign: 'left'
-                            valign: 'top'
-                            text_size: self.size
-                            color: 0.6, 0.3, 0.1, 1
-                            
+                        # Summary Section
                         BoxLayout:
-                            id: activity_box
                             orientation: 'vertical'
-                            spacing: 5
-                            font_size: '16sp'
+                            size_hint: 0.48, None
+                            height: 280
+                            padding: [20, 20, 20, 20]
+                            spacing: 10
+                            canvas.before:
+                                Color:
+                                    rgba: 0.9, 0.92, 0.95, 0.65
+                                RoundedRectangle:
+                                    pos: self.pos
+                                    size: self.size
+                                    radius: [12]
+    
+                            BoxLayout:
+                                id: summary_box
+                                orientation: 'vertical'
+                                size_hint_y: None
+                                height: self.minimum_height
+
+                        # Activity Section  
+                        BoxLayout:
+                            orientation: 'vertical'
+                            size_hint: 0.48, None
+                            height: 280
+                            padding: [20, 20, 20, 20]
+                            spacing: 10
+                            canvas.before:
+                                Color:
+                                    rgba: 1, 0.98, 0.95, 0.95
+                                RoundedRectangle:
+                                    pos: self.pos
+                                    size: self.size
+                                    radius: [12]
+    
+                            BoxLayout:
+                                id: activity_box
+                                orientation: 'vertical'
+                                size_hint_y: None
+                                height: self.minimum_height
                 
                 BoxLayout:
                     orientation: 'vertical'
@@ -866,7 +860,7 @@
                             radius: [12]
                     
                     Label:
-                        text: "Graph"
+                        text: "Weather Trend ±3 Days"
                         font_size: '20sp'
                         bold: True
                         size_hint_y: None

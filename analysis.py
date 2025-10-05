@@ -114,12 +114,18 @@ def fetch_open_meteo_historical(latitude, longitude, start_date, end_date):
         data = response.json()
         
         if 'daily' in data:
-            df = pd.DataFrame({
+            df = pd.DataFrame ({
                 'Date': pd.to_datetime(data['daily']['time']),
                 'T2M_OM': data['daily']['temperature_2m_mean'],
                 'PRECTOTCORR_OM': data['daily']['precipitation_sum'],
-                'WS2M_OM': data['daily']['wind_speed_10m_mean']
+                'WS2M_OM': data['daily']['wind_speed_10m_mean'],
+                "snowfall": data["daily"].get("snowfall_sum", []),
+                "snow_depth": data["daily"].get("snow_depth", []),
+                "humidity_max": data["daily"].get("humidity_2m_max", []),
+                "humidity_min": data["daily"].get("humidity_2m_min", [])
             })
+
+           
             df.set_index('Date', inplace=True)
             print(f"   Open-Meteo data: {len(df)} days")
             return df
@@ -129,6 +135,53 @@ def fetch_open_meteo_historical(latitude, longitude, start_date, end_date):
     except Exception as e:
         print(f"   Error fetching Open-Meteo data: {e}")
         return None
+    
+def fetch_snow_forecast_openmeteo(latitude, longitude, start_date, end_date):
+    """Fetch snow data from Open-Meteo Archive API"""
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+    
+    base_url = "https://archive-api.open-meteo.com/v1/archive"
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "start_date": start_str,
+        "end_date": end_str,
+        "daily": "snowfall_sum,snow_depth_max",
+        "timezone": "auto"
+    }
+    
+    try:
+        print(f"   Fetching Snow data ({start_str} to {end_str})...")
+        response = requests.get(base_url, params=params, timeout=60.0)
+        response.raise_for_status()
+        data = response.json()
+        
+        if 'daily' in data and 'time' in data['daily']:
+            df = pd.DataFrame({
+                'Date': pd.to_datetime(data['daily']['time']),
+                'Snowfall_Sum': data['daily'].get('snowfall_sum'),
+                'Snow_Depth_Max': data['daily'].get('snow_depth_max')
+            })
+            df.set_index('Date', inplace=True)
+            
+            # Convert snow depth from meters to cm
+            if 'Snow_Depth_Max' in df.columns:
+                df['Snow_Depth_Max'] = df['Snow_Depth_Max'] * 100
+            
+            # Fill NaN with 0
+            df = df.fillna(0.0)
+            
+            snowfall_count = (df['Snowfall_Sum'] > 0).sum()
+            depth_count = (df['Snow_Depth_Max'] > 0).sum()
+            print(f"   Snow data: {len(df)} days | Snowfall days: {snowfall_count}, Depth days: {depth_count}")
+            return df
+        else:
+            return None
+    except Exception as e:
+        print(f"   Error fetching snow data: {e}")
+        return None
+
 
 def fetch_wind_data(start_date_str, end_date_str, lat, lon):
     """Fetch wind data (WS2M) from NASA POWER"""
@@ -202,24 +255,27 @@ def fetch_optional_params_openmeteo(lat, lon, selected_params):
     """Fetch optional parameters from Open-Meteo"""
     results = {}
     
-    # Mapping parameter names to Open-Meteo API names
     param_mapping = {
-        'RH2M': 'relativehumidity_2m',  # RH at 2m
-        'SNOWFALL': 'snowfall',         # Snowfall
-        'SNOW_DEPTH': 'snow_depth',     # Snow Depth
+        'RH2M': 'relativehumidity_2m',
+        'SNOWFALL': 'snowfall',
+        'SNOW_DEPTH': 'snow_depth',
     }
-
-    # Prepare parameters to fetch
+    
     om_params = [param_mapping[p] for p in selected_params if p in param_mapping]
     
     if om_params:
         base_url = "https://archive-api.open-meteo.com/v1/archive"
+        
+        from datetime import timedelta
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+        
         params = {
             "latitude": lat,
             "longitude": lon,
             "daily": ",".join(om_params),
             "start_date": "2015-01-01",
-            "end_date": "2025-09-22",
+            "end_date": yesterday.strftime("%Y-%m-%d"),  # ✅ ใช้ yesterday แทน hard-code
             "timezone": "auto"
         }
         
@@ -233,9 +289,17 @@ def fetch_optional_params_openmeteo(lat, lon, selected_params):
                 for api_name, df_name in param_mapping.items():
                     if df_name in data["daily"]:
                         df = pd.DataFrame({
-                            df_name: data["daily"][df_name],
+                            api_name: data["daily"][df_name],  # ✅ ใช้ api_name
                             "Date": pd.to_datetime(data["daily"]["time"])
                         }).set_index("Date")
+                        
+                        # แปลง Snow Depth จาก m เป็น cm
+                        if api_name == 'SNOW_DEPTH':
+                            df[api_name] = df[api_name] * 100
+                        
+                        # แปลง Snowfall จาก cm เป็น mm (ถ้า API ให้มาเป็น cm)
+                        # Open-Meteo ให้ snowfall เป็น cm อยู่แล้ว
+                        
                         results[api_name] = df
                         print(f"  {api_name} data: {len(df)} days")
         except Exception as e:
@@ -381,9 +445,13 @@ def predict_with_prophet(df, target_date, parameter_name):
         
         print(f"  {parameter_name}: Using Prophet only={prophet_prediction:.2f}")
     
-    final_prediction = max(0, final_prediction)
-    lower_bound = max(0, lower_bound)
-    upper_bound = max(0, upper_bound)
+    #Temp can < 0
+    if parameter_name == 'T2M':
+        pass
+    else:
+        final_prediction = max(0, final_prediction)
+        lower_bound = max(0, lower_bound)
+        upper_bound = max(0, upper_bound)
     
     train_forecast = model.predict(prophet_df[['ds']])
     actual = prophet_df['y'].values
@@ -556,6 +624,20 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
                     df.loc[common_dates, base_param] = ensemble_values
                     
                     print(f"   Ensemble {base_param}: {len(common_dates)} days")
+
+    # ตรวจสอบว่า target_date อยู่ในอนาคตหรือไม่
+    target_dt = pd.to_datetime(target_date)
+    if target_dt > pd.Timestamp.now():
+    # ใช้ forecast API
+        if 'SNOWFALL' in selected_params or 'SNOW_DEPTH' in selected_params:
+        # คำนวณช่วงวันที่สำหรับ forecast (±3 วัน)
+            from datetime import timedelta
+            start_date = target_dt - timedelta(days=3)
+            end_date = target_dt + timedelta(days=3)
+        
+            snow_forecast = fetch_snow_forecast_openmeteo(lat, lon, start_date, end_date)  # ✅ เพิ่ม start_date และ end_date
+            if snow_forecast is not None:
+                df = df.combine_first(snow_forecast)
     
     pm25_end = date(2025, 9, 22)  # ใช้วันเดียวกับ NASA
     pm25_df = fetch_pm25_data(lat, lon, date(2013, 1, 1), pm25_end)
@@ -751,7 +833,7 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
             if temp is not None and temp <= 5:
                 activities.append("WINTER ACTIVITIES:")
                 if snow_depth and snow_depth < 10:
-                    activities.append("Building snowmen, winter walks")
+                    activities.append("Building snowman, winter walks")
                 elif snow_depth and snow_depth < 30:
                     activities.append("Skiing, snowboarding")
                 else:
@@ -802,8 +884,10 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
     # Generate range data for graph
     range_data = {}
     print("\n=== Generating range_data for graph ===")
+
+    all_params = ['T2M', 'PRECTOTCORR', 'WS2M', 'PM25'] + selected_params
     
-    for param in ['T2M', 'PRECTOTCORR', 'WS2M', 'PM25', 'SNOWFALL', 'SNOW_DEPTH']:
+    for param in all_params:
         if param in df.columns:
             range_data[param] = get_range_values(df, param, target_date, days_range=3)
             valid_count = sum(1 for v in range_data[param].values() if v is not None)
@@ -823,3 +907,45 @@ def run_analysis(location_name, target_date, dust_file_path=None, selected_param
         'range_data': range_data,
         'selected_params': selected_params
     }
+
+if __name__ == "__main__":
+    # 🧊 ตัวอย่างพิกัด: Mount Fuji, Japan (มีหิมะ)
+    lat, lon = 35.36, 138.73
+
+    print("📡 กำลังดึงข้อมูล snow และ humidity จาก Open-Meteo ...")
+
+    # API จาก Open-Meteo
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={lat}&longitude={lon}"
+        f"&daily=snowfall_sum,snow_depth,relative_humidity_2m_max,relative_humidity_2m_min"
+        f"&timezone=auto"
+    )
+
+    import requests, pandas as pd
+
+    response = requests.get(url)
+    data = response.json()
+
+    # ตรวจสอบว่ามีข้อมูลหรือไม่
+    if "daily" in data:
+        df = pd.DataFrame({
+            "date": data["daily"]["time"],
+            "snowfall": data["daily"].get("snowfall_sum", []),
+            "snow_depth": data["daily"].get("snow_depth", []),
+            "humidity_max": data["daily"].get("relative_humidity_2m_max", []),
+            "humidity_min": data["daily"].get("relative_humidity_2m_min", []),
+        })
+
+        # คำนวณค่าเฉลี่ยความชื้น
+        df["humidity_avg"] = (df["humidity_max"] + df["humidity_min"]) / 2
+
+        print("\n✅ ตัวอย่างข้อมูลที่ได้จาก API:")
+        print(df.head())
+
+        print("\n📊 ค่าสรุปโดยเฉลี่ยในช่วงที่ดึงมา:")
+        print(f"Snow Depth เฉลี่ย: {df['snow_depth'].mean():.2f} cm")
+        print(f"Snow Fall เฉลี่ย: {df['snowfall'].mean():.2f} cm")
+        print(f"Humidity เฉลี่ย: {df['humidity_avg'].mean():.2f}%")
+    else:
+        print("❌ ไม่พบข้อมูลใน API response")

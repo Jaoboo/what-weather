@@ -213,7 +213,8 @@ class MainFormScreen(Screen):
             print(f"Analysis error: {e}")
             import traceback
             traceback.print_exc()
-            Clock.schedule_once(lambda dt: self.show_warning(f"Analysis failed:\n{str(e)}"), 0)
+            error_msg = f"Analysis failed:\n{str(e)}"  # ✅ เก็บค่าไว้ก่อน
+            Clock.schedule_once(lambda dt: self.show_warning(error_msg), 0)
             Clock.schedule_once(lambda dt: setattr(self.manager, 'current', 'main'), 0)
 
 class ResultScreen(Screen):
@@ -245,14 +246,14 @@ class ResultScreen(Screen):
         predictions = analysis_results.get('predictions', {})
         recommendations = analysis_results.get('recommendations', [])
 
-        # === 1. Summary Section ===
-        summary_text = ""  # ลด \n\n เหลือ \n
+        # === 1. Summary ===
+        summary_text = "[b][size=20sp][color=#4099FF]Summary[/color][/size][/b]\n\n"
 
         if recommendations:
             for rec in recommendations:
                 summary_text += f"• {rec}\n"
         else:
-            summary_text += "No recommendations available"
+                summary_text += "No recommendations available"
 
         summary_label = Label(
             text=summary_text,
@@ -261,14 +262,17 @@ class ResultScreen(Screen):
             color=(0.3, 0.3, 0.3, 1),
             halign='left',
             valign='top',
-            size_hint_y=None,
-            height=250
+            size_hint=[1, None],
+            height=250,
+            padding=[5, 5, 10, 10]
         )
-        summary_label.bind(size=lambda obj, size: setattr(obj, 'text_size', (size[0] - 20, None)))
+        summary_label.bind(
+            size=lambda obj, size: setattr(obj, 'text_size', size)
+        )
         self.ids.summary_box.add_widget(summary_label)
 
-        # === 2. Activity Recommendations Section ===
-        activity_text = "" 
+        # === 2. Activity Recommendations ===
+        activity_text = "[b][size=20sp][color=#994C1A]Activity Recommendations[/color][/size][/b]\n\n"
 
         activities = analysis_results.get('activity_recommendations', [])
 
@@ -285,10 +289,13 @@ class ResultScreen(Screen):
             color=(0.4, 0.2, 0.1, 1),
             halign='left',
             valign='top',
-            size_hint_y=None,
-            height=250
+            size_hint=[1, None],
+            height=250,
+            padding=[5, 5, 10, 10]
         )
-        activity_label.bind(size=lambda obj, size: setattr(obj, 'text_size', (size[0] - 20, None)))
+        activity_label.bind(
+            size=lambda obj, size: setattr(obj, 'text_size', size)
+        )
         self.ids.activity_box.add_widget(activity_label)
     
         # === 3. Weather Cards ===
@@ -344,6 +351,8 @@ class ResultScreen(Screen):
 
             ax.grid(True, alpha=0.3, linestyle='--')
 
+            ax.yaxis.set_visible(False)
+
             num_params = len(range_data)
             if num_params == 4:
                 ncol = 2
@@ -352,7 +361,7 @@ class ResultScreen(Screen):
             else:
                 ncol = 3
 
-            ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+            ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), 
                       ncol=ncol, frameon=False, fontsize=9)
 
             plt.xticks(rotation=45, ha='right', fontsize=9)
@@ -754,19 +763,20 @@ class ResultScreen(Screen):
         if not self.download_menu:
             return
     
-        # หาตำแหน่งปุ่ม Download
         try:
             download_btn = self.ids.download_btn
-            # วางเมนูให้ติดใต้ปุ่ม Download พอดี
+        
+            # คำนวณตำแหน่งให้ติดใต้ปุ่ม
             menu_x = download_btn.x
-            menu_y = download_btn.y - 138  # 135 (สูงเมนู) + 3 (spacing)
+            menu_y = download_btn.y - 135
         
             self.download_menu.pos = (menu_x, menu_y)
-        except:
-            # ถ้าหาปุ่มไม่เจอ ใช้ตำแหน่งโดยประมาณ
-            menu_x = Window.width - 170
-            menu_y = Window.height - 70 - 45 - 138
         
+        except AttributeError as e:
+        # ถ้าหาปุ่มไม่เจอ คำนวณจากขอบขวาบน
+            menu_x = Window.width - 170
+            menu_y = Window.height - 70 - 45 - 135
+
             self.download_menu.pos = (menu_x, menu_y)
 
     def download_file(self, file_type):
